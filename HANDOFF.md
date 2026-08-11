@@ -15,7 +15,8 @@
 | `index.html` | **손대지 않음.** 813줄 원본 그대로 |
 | `manifest.json` · `sw.js` | 없음 (2단계에서 생성) |
 | `icons/` | 4개 존재. **검증 완료** — 아래 참조 |
-| git 저장소 | 아직 아님. `git init` 필요 |
+| git 저장소 | **생성됨** · https://github.com/LeRanunculus/workout (public, `main`) |
+| GitHub Pages | **아직 안 켬.** 앱이 PWA가 아니라 지금 켜면 깨진 화면이 나간다 (2단계에서) |
 | 아이폰 실기기 | **아무것도 확인하지 못했다.** 배포 자체를 안 했다 |
 
 ---
