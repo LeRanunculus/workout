@@ -37,7 +37,7 @@ workout/
 ├── SCHEMA.md
 ├── SPEC.md
 ├── PROGRAM.md
-└── HANDOFF.md          # 작업 후 생성
+└── HANDOFF.md          # 세션 인계 · 매번 갱신
 ```
 
 **아이콘은 실측으로 검증됐다** (2026-08-11). 치수·투명도 모두 정상이므로
@@ -160,15 +160,6 @@ const DB = {
 대체 종목 프리필은 SCHEMA.md 「대체 종목 프리필 — 읽기 전용 규칙」을 그대로 따른다.
 **읽기 규칙과 쓰기 규칙을 섞지 말 것.**
 
-## 1-4. wk:program 자리를 지금 잡는다
-
-편집 UI는 5단계지만 **데이터 자리는 여기서 만든다.**
-앱이 처음 켜질 때 코드의 `DAYS`를 그대로 복사해 `wk:program`에 넣고,
-이후 모든 화면이 **코드 상수가 아니라 이 키를 읽게** 한다.
-
-나중에 넣으면 이미 쌓인 데이터를 이사시켜야 하고, 마이그레이션이 하나 더 생긴다.
-지금은 복사 한 번이면 끝난다. 코드의 `DAYS`는 **되돌리기용 원본**으로 남는다.
-
 ## 1-3. 자동 저장을 되살린다
 
 localStorage는 호출 비용이 없다. "세션 저장 버튼을 눌러야만 저장"에서 되돌린다.
@@ -177,6 +168,15 @@ localStorage는 호출 비용이 없다. "세션 저장 버튼을 눌러야만 �
 - 세트 완료(✓) 시 즉시 저장
 - 화면 복귀(`visibilitychange`) 시 진행 중이던 세션 복원 (0-4)
 - `beforeunload` 경고 제거 (`:390`) — 더 이상 잃을 게 없다
+
+## 1-4. wk:program 자리를 지금 잡는다
+
+편집 UI는 5단계지만 **데이터 자리는 여기서 만든다.**
+앱이 처음 켜질 때 코드의 `DAYS`를 그대로 복사해 `wk:program`에 넣고,
+이후 모든 화면이 **코드 상수가 아니라 이 키를 읽게** 한다.
+
+나중에 넣으면 이미 쌓인 데이터를 이사시켜야 하고, 마이그레이션이 하나 더 생긴다.
+지금은 복사 한 번이면 끝난다. 코드의 `DAYS`는 **되돌리기용 원본**으로 남는다.
 
 ---
 
@@ -255,14 +255,19 @@ if ("serviceWorker" in navigator) {
 
 ## 2-4. 배포
 
+**저장소는 이미 있다** — https://github.com/LeRanunculus/workout (public, `main`).
+`git init` 이나 `gh repo create` 를 다시 하지 말 것.
+
 ```bash
-git init
-git add -A
-git commit -m "운동 세션 PWA 초기 배포"
-gh repo create workout --public --source=. --remote=origin --push
+git add -A && git commit -m "PWA 껍데기" && git push
 ```
 
-Pages 활성화 — Settings → Pages → Branch: main / root. 반영까지 1~2분.
+**Pages는 아직 꺼져 있다.** 여기서 켠다 — Settings → Pages → Branch: `main` / root.
+`gh api -X POST repos/LeRanunculus/workout/pages -f 'source[branch]=main' -f 'source[path]=/'`
+로도 된다. 반영까지 1~2분.
+
+켠 직후 **서브경로부터 확인할 것** (함정 ①) —
+`https://leranunculus.github.io/workout/manifest.json` 이 200으로 뜨는가.
 
 ---
 
