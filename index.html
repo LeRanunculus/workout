@@ -65,6 +65,12 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
 .runline.warn{background:rgba(228,100,62,.13);border-color:rgba(228,100,62,.34)}
 .runline b{font-weight:700}
 .prev{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:11px;font-weight:600}
+/* 지난 세션 펼쳐보기 — 앱을 다시 열면 그날 한 것을 볼 방법이 아예 없었다 */
+button.prev{display:block;width:100%;text-align:left;background:transparent;border:0;
+  border-top:1px solid var(--line);padding:12px 0 0;cursor:pointer;min-height:44px}
+button.prev .more{color:var(--brass);margin-left:6px}
+.prevbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-top:9px;
+  font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--dim);white-space:pre-wrap;word-break:break-all}
 
 .banner{background:rgba(228,100,62,.13);border:1px solid rgba(228,100,62,.4);border-radius:14px;
   padding:15px 15px 13px;margin-bottom:13px}
@@ -635,6 +641,16 @@ const isAdded=i=>i>=D().ex.length;
 // 오늘의 세트 수. 계획값을 덮어쓰지 않고 얹는다
 const setsOf=i=>{ const v=sessionSets[i]; return v>0?v:(todayEx()[i]||{}).sets||0; };
 function clearSession(){ sessionSets={}; sessionSkip={}; sessionAdds=[]; openSheet=-1; pickMode=null; }
+/* ── 대체 종목 기억 (SPEC 4-8) ──
+   기록의 키는 실제 수행 종목이다. 그래서 바벨 백스쿼트 자리에서 고블릿 스쿼트를 하면
+   기록은 「고블릿 스쿼트」에 남는데, 다음에 그 Day 를 열면 화면은 바벨 백스쿼트를 보여주며
+   "지난 기록 없음" 이라고 한다 — 실제로 한 운동이 사라진 것처럼 보인다.
+   그 자리의 마지막 대체를 기억해 다음에 미리 골라두면 기록이 이어지고 탭도 줄어든다. */
+function seedSwaps(){
+  const m=(idx&&idx.swapMemory)||{};
+  D().ex.forEach((e,i)=>{ if(m[e.name]&&swaps[i]===undefined) swaps[i]=m[e.name]; });
+}
+const fromMemory=(i,orig)=>swaps[i]&&swaps[i]===((idx.swapMemory||{})[orig]);
 
 function blankProgram(){
   return {schema:SCHEMA_VER, rev:1, basedOn:localDate(),
@@ -642,7 +658,7 @@ function blankProgram(){
 }
 function blankIndex(){
   return {schema:SCHEMA_VER, rev:0, programStart:null, months:[],
-          counts:{sessions:0,runs:0},
+          counts:{sessions:0,runs:0}, swapMemory:{},
           // rotation 이 Day 순환의 단일 진실이다. history[0] 에서 유도하면 월초에 깨진다
           rotation:{lastDay:null,lastDate:null,nextDay:1,cycles:0,byDay:{}},
           lastByExercise:{}, recentRunWeeks:[]};
@@ -754,9 +770,11 @@ async function load(){
   idx.lastByExercise=idx.lastByExercise||{};
   idx.months=idx.months||[];
   idx.counts=idx.counts||{sessions:0,runs:0};
+  idx.swapMemory=idx.swapMemory||{};
   await importLegacy();
   curDay=nextDay();
-  restoreDraft();
+  // 드래프트가 있으면 그때의 선택이 우선이다 — 되돌려둔 것을 기억이 다시 덮으면 안 된다
+  if(!restoreDraft()) seedSwaps();
 }
 
 /* ── 자동 저장 (0-4 / SPEC 1-3) ──
@@ -793,7 +811,7 @@ function saveDraft(){ sessionSaved=false; dirty=true; markUnsaved(); clearTimeou
 function clearDraft(){ clearTimeout(saveTimer); saveTimer=null; try{ DB.del(K.draft); }catch(e){} dirty=false; markUnsaved(); }
 function restoreDraft(){
   const d=readJSON(K.draft);
-  if(!hasDraftContent(d)) return;
+  if(!hasDraftContent(d)) return false;
   entries=d.entries||{}; swaps=d.swaps||{}; blocks=d.blocks||{};
   sessionSets=d.sessionSets||{}; sessionSkip=d.sessionSkip||{};
   sessionAdds=Array.isArray(d.sessionAdds)?d.sessionAdds:[];
@@ -801,6 +819,7 @@ function restoreDraft(){
   dirty=false;
   // 날짜가 다르면 조용히 넘기지 않는다 — 어제 것을 오늘로 저장하게 두면 안 된다
   if(d.date&&d.date!==today()) setTimeout(()=>banner(`${d.date}에 진행하던 세션을 복원했습니다. 지금 저장하면 오늘 날짜로 기록됩니다.`),0);
+  return true;
 }
 function markUnsaved(){
   const el=$("unsaved"); if(!el) return;
@@ -832,7 +851,10 @@ function renderOverview(){
       const sets=d.ex.reduce((a,e)=>a+e.sets,0);
       const names=d.ex.map(e=>(e.equip==="프리"||e.equip==="맨몸")?`<em>${esc(e.name)}</em>`:esc(e.name)).join(" · ");
       return `<button class="dayrow" data-d="${d.n}" data-sel="${d.n===curDay?1:0}" data-next="${d.n===nd?1:0}">
-        <div class="drhead"><span class="dnum">DAY ${d.n}</span><span class="dsets">${(()=>{const h=d.ex.filter(e=>idx.lastByExercise[e.name]).length;return h?`<b class="hasrec">기록 ${h}</b> · `:"";})()}${d.ex.length}종목 · ${sets}세트</span></div>
+        <div class="drhead"><span class="dnum">DAY ${d.n}</span><span class="dsets">${(()=>{const m=idx.swapMemory||{};
+          // 대체해서 한 종목도 기록이 있는 것으로 센다 — 프로그램 이름으로만 세면 한 운동이 없어 보인다
+          const h=d.ex.filter(e=>idx.lastByExercise[e.name]||(m[e.name]&&idx.lastByExercise[m[e.name]])).length;
+          return h?`<b class="hasrec">기록 ${h}</b> · `:"";})()}${d.ex.length}종목 · ${sets}세트</span></div>
         <div class="dtitle">${esc(d.title)}</div>
         <div class="dlist">${names}</div>
         ${d.leg?`<div class="dleg">하체일 — 이날 밤 러닝은 5km 이지</div>`:""}
@@ -847,6 +869,7 @@ function renderOverview(){
        !confirm(`Day ${curDay} 에 저장하지 않은 기록 ${doneSets()}세트가 있습니다.\n지우고 Day ${b.dataset.d} 로 이동할까요?`)) return;
     curDay=+b.dataset.d; entries={}; swaps={}; blocks={};
     sessionSaved=false; savedRec=null; clearSession(); renderAddSheet(); clearDraft();
+    seedSwaps(); prevOpen=false;
     renderOverview(); renderBrief(); renderBlocks(); render(); stopRest();
     $("saved").textContent=""; $("reset").style.display="none";
     $("coachbox").style.display="none";
@@ -1132,7 +1155,26 @@ function renderBrief(){
     <div class="runline ${d.leg?"warn":""}">
       ${d.leg?"<b>오늘 밤 러닝은 낮춥니다 — </b>":"<b>오늘 밤 러닝 · </b>"}${d.run}${d.leg?". 하체 직후 평소 페이스로 뛰면 폼이 무너집니다.":""}
     </div>
-    <div class="prev">${prevTxt}</div>`;
+    ${prevDate?`<button type="button" class="prev" id="prevbtn" aria-expanded="${prevOpen}">${prevTxt}<span class="more">${prevOpen?"닫기":"무엇을 했는지 보기"}</span></button>
+                <div id="prevbox"></div>`
+              :`<div class="prev">${prevTxt}</div>`}`;
+  if(prevDate){
+    $("prevbtn").addEventListener("click",()=>{ prevOpen=!prevOpen; renderBrief(); });
+    if(prevOpen){
+      const s=lastSessionOf(d.n);
+      $("prevbox").className="prevbox";
+      $("prevbox").textContent = s ? sessionLines(s).slice(1).join("\n")
+        : "그날의 세부 기록을 찾지 못했습니다. 전체 내보내기에서 확인해주세요.";
+    }
+  }
+}
+/* 그 Day 의 마지막 세션을 월 파일에서 찾는다. 읽기 전용이다 —
+   지난 기록을 화면에서 고치는 길은 만들지 않는다 (HANDOFF 「되살리지 말 것」). */
+let prevOpen=false;
+function lastSessionOf(day){
+  const date=(idx.rotation.byDay||{})[day]; if(!date) return null;
+  const list=(getMonth(monthOf(date)).sessions||[]).filter(s=>s.day===day&&s.date===date);
+  return list.length?list[list.length-1]:null;
 }
 
 function blockItem(kind,idx,name,detail,sec,alert){
@@ -1244,7 +1286,7 @@ function render(){
           <button class="gearbtn" type="button" data-gear="${i}" aria-expanded="${openSheet===i}"
                   aria-label="${esc(name)} 계획 고치기">⚙</button></span></div>
       <div class="exhead"><div>
-        <div class="exname">${esc(name)}${swaps[i]?`<span class="swapped">대체 · 원래 ${esc(orig)}</span>`:""}</div>
+        <div class="exname">${esc(name)}${swaps[i]?`<span class="swapped">${fromMemory(i,orig)?"지난번처럼 대체":"대체"} · 원래 ${esc(orig)}</span>`:""}</div>
         <div class="extarget">${sets} × ${esc(reps)}회 · RIR ${rir} · 휴식 ${rest>=60?(rest/60)+"분":rest+"초"}${setsChanged?` <em>오늘만 ${e.sets}→${sets}</em>`:""}</div>
         <div class="cue">${cue}</div>
       </div><span class="idx">${String(i+1).padStart(2,"0")}</span></div>
@@ -1347,7 +1389,17 @@ function bindQuick(){
   // 시트 · 오늘만 구역
   on("[data-alt]",e=>{ const t=e.currentTarget;
     swaps[+t.dataset.alt]=t.dataset.name; openSheet=-1; saveDraft(); render(); });
-  on("[data-revert]",e=>{ delete swaps[e.currentTarget.dataset.revert]; saveDraft(); render(); });
+  /* 되돌리면 기억도 지운다. 안 지우면 Day 를 다시 열 때마다 대체가 되살아나
+     원래 종목으로 돌아갈 방법이 없어진다. */
+  on("[data-revert]",e=>{
+    const i=+e.currentTarget.dataset.revert, orig=todayEx()[i];
+    delete swaps[i];
+    if(orig&&idx.swapMemory&&idx.swapMemory[orig.name]){
+      delete idx.swapMemory[orig.name]; idx.rev++;
+      writeJSON(K.index,idx).then(w=>{ if(!w.ok) banner(`대체 되돌리기를 저장하지 못했습니다 (${w.err||"원인 미상"}).`); });
+    }
+    saveDraft(); render();
+  });
 
   // 시트 · 프로그램 구역 — 고치는 즉시 wk:program 에 쓴다
   on("[data-psets]",async e=>{
@@ -1382,8 +1434,8 @@ function candidates(exclude){
   return out;
 }
 const addCandidates=()=>candidates(todayEx().map(x=>x.name));
-// 교체할 때는 그 자리의 종목만 후보에서 빼지 않는다 — 나머지 오늘 종목은 중복이라 뺀다
-const swapCandidates=i=>candidates(todayEx().filter((x,k)=>k!==i).map(x=>x.name));
+// 오늘 목록에 있는 것은 전부 뺀다 — 자기 자신으로 바꾸는 선택지가 있으면 헷갈리기만 한다
+const swapCandidates=()=>candidates(todayEx().map((x,k)=>swaps[k]||x.name));
 function renderAddSheet(){
   const box=$("addsheet");
   if(openSheet!==-2){ box.innerHTML=""; return; }
@@ -1504,7 +1556,7 @@ function sheetHTML(i){
 /* 자리를 지키는 교체. 「대체 종목」(오늘만)과도, 「오늘 종목 추가」(맨 뒤)와도 다르다.
    맨 뒤에 추가하고 원래 것을 건너뛰는 것으로는 순서가 어긋나고 손도 두 번 간다. */
 function pickerHTML(i,mode){
-  pickCache=swapCandidates(i).slice(0,16);
+  pickCache=swapCandidates().slice(0,16);
   const cur=todayEx()[i];
   return `<div class="qsheet">
     <div class="qz ${mode==="today"?"today":"prog"}">${mode==="today"?"오늘만 다른 종목으로":`${i+1}번째 자리를 교체`}</div>
@@ -1626,6 +1678,12 @@ $("finish").addEventListener("click",async()=>{
          >= 면 줄였을 때는 여전히 거짓이라 "계획만큼 채워야 증량"이라는 원래 의도는 지켜진다.
          비교 대상은 언제나 계획 세트 수(e.sets)다 — 오늘 줄인 값이 아니다. */
       allTop:arr.length>=e.sets&&arr.every(x=>x.r>=e.top), date};
+    /* 그 자리의 마지막 대체를 기억한다 (SPEC 4-8). 되돌렸으면 기억도 지운다 —
+       안 지우면 원래 종목으로 돌아갈 방법이 없어진다. 오늘 추가한 종목은 자리가 없다. */
+    if(!isAdded(i)){
+      if(name!==e.name) idx.swapMemory[e.name]=name;
+      else delete idx.swapMemory[e.name];
+    }
   });
 
   const mo=getMonth(m);
@@ -1656,7 +1714,9 @@ $("finish").addEventListener("click",async()=>{
     $("saved").innerHTML=`<span class="err">저장 실패 — ${r.err||"원인 미상"}<br>화면의 기록은 그대로 있습니다. 아래 <b>기록 백업</b>을 눌러 텍스트로 복사해두세요.</span>`;
   }
   showCoach(rec);
-  setTimeout(()=>$("coachbox").scrollIntoView({behavior:"smooth",block:"start"}),200);
+  /* 코칭 상자로 스크롤하면 그 바로 48px 위의 「초기화」 버튼이 화면 밖으로 밀려
+     "초기화 버튼이 어디 갔냐"가 된다. 한 칸 위인 저장 메시지에 맞추면 둘 다 보인다. */
+  setTimeout(()=>(ok?$("saved"):$("coachbox")).scrollIntoView({behavior:"smooth",block:"start"}),200);
   stopRest(); renderOverview(); renderBrief(); renderBlocks(); render(); renderEditor();
 });
 
@@ -1668,6 +1728,7 @@ $("reset").addEventListener("click",()=>{
   clearSession(); renderAddSheet();
   clearDraft();
   curDay=nextDay();
+  seedSwaps(); prevOpen=false;
   $("saved").textContent=""; $("reset").style.display="none";
   $("coachbox").style.display="none"; $("backup").style.display="none";
   stopRest(); renderOverview(); renderBrief(); renderBlocks(); render();
@@ -1683,6 +1744,13 @@ $("reset").addEventListener("click",()=>{
    예전에는 백업 하나가 두 자리를 겸했다. 세션이 쌓일수록 매번 보는 텍스트가 길어져
    실사용에서 못 쓰게 된다 — 2세션 만에 60줄이 됐다. 그래서 분리한다. */
 const RIRTXT={easy:"여유있었음",ontarget:"딱맞았음",limit:"한계였음"};
+/* 주차 — SCHEMA 「코칭 프롬프트」가 요구하는 항목이다. 6주차면 조언이 달라진다.
+   다만 디로드 판정은 여전히 바퀴 수 기준이다 (달력 주차가 아니다). */
+function weekNo(){
+  const s=idx&&idx.programStart; if(!s) return null;
+  const d=Math.floor((new Date(today())-new Date(s))/86400000);
+  return d>=0 ? Math.floor(d/7)+1 : null;
+}
 function sessionLines(s){
   const out=[`[${s.date}] Day ${s.day} · ${s.title||""}`.trimEnd()];
   (s.exercises||[]).forEach(x=>{
@@ -1795,8 +1863,12 @@ function coachText(rec){
     // 오늘 추가한 종목은 계획에 없다 (planned:null). sessionAdds 에서 찾고 그렇게 표시한다
     const e=d.ex.find(z=>z.name===x.planned)||d.ex.find(z=>z.name===x.name)
           ||sessionAdds.find(z=>z.name===x.name);
-    if(!e) return `${x.name}: 계획 외 종목`;
+    /* 실제 수행 세트 수가 계획과 다르면 반드시 밝힌다. 목표만 "2세트" 라고 적고
+       기록에 3세트가 있으면 코치가 볼륨 변화를 계획 변경으로 오해한다. */
+    const n=(x.sets||[]).length;
+    if(!e) return `${x.name}: 계획 외 종목 · 오늘 ${n}세트 수행`;
     return `${x.name}: 목표 ${e.sets}x${e.reps} RIR ${e.rir} (증량단위 ${e.inc}kg)`
+         + (n!==e.sets?` · 오늘 ${n}세트 수행`:"")
          + (x.planned===null?" · 오늘 추가한 종목":"");
   });
   // 건너뛴 종목도 코칭 재료다 — 볼륨이 왜 줄었는지 알아야 조언이 맞는다
@@ -1811,13 +1883,20 @@ function coachText(rec){
     ``,
     `[오늘 Day의 목표]`,
     ...(goal.length?goal:["(없음)"]),
-    ...(skipped.length?[`오늘 건너뛴 종목: ${skipped.join(", ")}`]:[]),
     ``,
+    // 건너뛴 종목은 목표 목록에 섞지 않는다 — 붙여 두면 목표의 일부로 읽힌다
+    ...(skipped.length?[`[오늘 하지 않은 종목]`, skipped.join(", "), ``]:[]),
     `[같은 Day 이전 기록]`,
-    ...(prev.length?prev.flatMap(s=>sessionLines(s)):["이전 기록 없음"]),
+    ...(prev.length?prev.flatMap(s=>{
+      const ls=sessionLines(s);
+      // 같은 날 두 번 저장한 것을 "이전"으로 읽으면 추이 판단이 어긋난다
+      if(s.date===rec.date) ls[0]+=" (오늘 앞서 한 세션)";
+      return ls;
+    }):["이전 기록 없음"]),
     ``,
     `[진행 상황]`,
-    `${idx.rotation.cycles}바퀴 완주 · 누적 ${idx.counts.sessions}세션` +
+    (weekNo()?`${weekNo()}주차 · `:"") +
+      `${idx.rotation.cycles}바퀴 · 누적 ${idx.counts.sessions}세션` +
       (idx.rotation.cycles>=6?" · 디로드 권고 구간":""),
     ``,
     `[사용자 상황]`,
