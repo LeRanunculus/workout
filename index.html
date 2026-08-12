@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>운동 세션 · 최종 3</title>
+<title>운동 세션</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="운동">
+<meta name="theme-color" content="#2B2836">
 <style>
 :root{
   --field:#2B2836; --panel:#353143; --panel2:#3E3A4D; --line:#4B4659;
@@ -1046,12 +1053,27 @@ $("resbtn").addEventListener("click",()=>{
   if(!t.trim()){ $("resmsg").innerHTML='<span class="err">붙여넣은 내용이 없습니다.</span>'; return; }
   applyRestore(t,"");
 });
-function envCheck(){
+/* 서비스워커에게 캐시 버전을 물어본다. 폰에서 "고친 게 반영됐나"를 눈으로 확인하는 수단이다.
+   controller 가 없으면(최초 방문·미등록) null 이고, 화면에는 그렇게 표시한다. */
+function askSWVersion(){
+  return new Promise(res=>{
+    const c=("serviceWorker" in navigator) && navigator.serviceWorker.controller;
+    if(!c) return res(null);
+    const ch=new MessageChannel();
+    const t=setTimeout(()=>res(null),1000);
+    ch.port1.onmessage=e=>{ clearTimeout(t); res(e.data&&e.data.cache); };
+    try{ c.postMessage("version",[ch.port2]); }catch(e){ clearTimeout(t); res(null); }
+  });
+}
+async function envCheck(){
   const ok=storageOK!==false;               // probeStorage() 가 실제로 대입한다 (0-2)
   const wake="wakeLock" in navigator, vib=!!navigator.vibrate;
+  const swOn=("serviceWorker" in navigator);
+  const ver=await askSWVersion();
   $("env").innerHTML=`<span class="${ok?"y":"n"}">${ok?"●":"○"} 기록 저장</span>`+
     `<span class="${wake?"y":"n"}">${wake?"●":"○"} 화면 유지</span>`+
     `<span class="${vib?"y":"n"}">${vib?"●":"○"} 진동</span><span class="y">● 알림음</span>`+
+    `<span class="${ver?"y":"n"}">${ver?"● "+ver:(swOn?"○ 오프라인 준비 중":"○ 오프라인 미지원")}</span>`+
     (ok?"":`<span class="n">저장소를 쓸 수 없는 환경입니다${lastErr?" ("+lastErr+")":""} — 세션 끝에 기록 백업을 복사해두세요</span>`);
 }
 
@@ -1061,6 +1083,19 @@ function envCheck(){
   await load();                              // load() 안에서 probeStorage() 가 먼저 돈다
   renderOverview(); renderBrief(); renderBlocks(); render(); markUnsaved(); keepAwake(); envCheck();
 })();
+
+/* 서비스워커 등록 — "sw.js" 상대경로여야 한다.
+   "/sw.js" 는 Pages 의 /workout/ 서브경로에서 404 가 나고, 그러면 PWA 가 아예 성립하지 않는다. */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("sw.js").then(()=>{
+      // 최초 방문에는 controller 가 없다. 잡히면 표시줄의 캐시 버전을 채운다
+      if(!navigator.serviceWorker.controller){
+        navigator.serviceWorker.addEventListener("controllerchange",()=>envCheck(),{once:true});
+      }
+    }).catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
