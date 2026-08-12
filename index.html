@@ -248,6 +248,11 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
 .edf input:disabled{opacity:.4}
 .edf input::-webkit-outer-spin-button,.edf input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .edf input[type=number]{-moz-appearance:textfield}
+/* 반복 범위는 칸 두 개로 받는다. 한 칸에 "8-12" 를 치게 하면 iOS 숫자 키패드에
+   하이픈 키가 없어 입력 자체가 불가능하다 (2026-08-12 실사용에서 발견) */
+.edrange{display:flex;align-items:center;gap:8px}
+.edrange input{flex:1;min-width:0}
+.edrange span{font-family:var(--mono);font-size:14px;color:var(--faint);font-weight:700;flex-shrink:0}
 .edchk{display:flex;align-items:center;gap:10px;min-height:46px;font-size:13.5px;color:var(--dim);cursor:pointer}
 .edchk input{width:22px;height:22px;accent-color:var(--brass);flex-shrink:0}
 .edpair{display:flex;gap:8px;margin-top:11px}
@@ -762,6 +767,14 @@ function renderOverview(){
 let edDay=1, edForm=null, edNote="", baseSets={};
 
 const topOf=r=>{ const m=String(r).match(/(\d+)\s*$/); return m?+m[1]:12; };   // "8-12" → 12
+/* "8-12" → [8,12], "10" → [10,10]. 편집기는 칸 두 개로 받고 여기서 다시 문자열로 합친다 —
+   저장 형식은 SCHEMA 의 reps 문자열 그대로다. 화면과 코칭 프롬프트가 그 문자열을 쓴다. */
+function repsRange(s){
+  const m=String(s||"").match(/(\d+)\s*-\s*(\d+)/);
+  if(m) return [+m[1],+m[2]];
+  const one=String(s||"").match(/(\d+)/);
+  return one?[+one[1],+one[1]]:[8,12];
+}
 const daySets=d=>d.ex.reduce((a,e)=>a+e.sets,0);
 const renumberDays=()=>PROG().forEach((d,i)=>d.n=i+1);
 
@@ -811,11 +824,12 @@ function moveRecord(oldName,newName){
   return `지난 기록을 "${newName}" 으로 옮겼습니다.`;
 }
 
-function edValidate(name,sets,reps,rest,inc,skip){
+function edValidate(name,sets,lo,hi,rest,inc,skip){
   const day=PROG()[edDay-1];
   if(!name) return "이름을 입력하세요.";
   if(day.ex.some((e,i)=>i!==skip&&e.name===name)) return "같은 Day 에 같은 이름의 종목이 이미 있습니다.";
-  if(!/^\d+\s*(-\s*\d+)?$/.test(reps)) return '반복 범위는 "8-12" 또는 "10" 형식이어야 합니다.';
+  if(!(lo>=1&&lo<=100&&hi>=1&&hi<=100)) return "반복 수는 1~100 사이여야 합니다.";
+  if(hi<lo) return "반복 범위의 오른쪽이 왼쪽보다 작습니다.";
   if(!(sets>=1&&sets<=10)) return "세트는 1~10 사이여야 합니다.";
   if(!(rest>=0&&rest<=600)) return "휴식은 0~600초 사이여야 합니다.";
   if(!(inc>=0&&inc<=50)) return "증량 단위는 0~50kg 사이여야 합니다.";
@@ -823,10 +837,12 @@ function edValidate(name,sets,reps,rest,inc,skip){
 }
 async function edApply(){
   const day=PROG()[edDay-1], at=edForm.i, cur=at>=0?day.ex[at]:null;
-  const name=$("ed_name").value.trim(), reps=$("ed_reps").value.trim().replace(/\s/g,"");
+  const name=$("ed_name").value.trim();
+  const lo=+$("ed_lo").value, hi=+$("ed_hi").value;
   const sets=+$("ed_sets").value, rest=+$("ed_rest").value, bw=$("ed_bw").checked;
   const inc=bw?0:(+$("ed_inc").value||0);
-  const err=edValidate(name,sets,reps,rest,inc,at);
+  const err=edValidate(name,sets,lo,hi,rest,inc,at);
+  const reps=(lo===hi)?String(lo):`${lo}-${hi}`;
   if(err){ $("ed_err").textContent=err; return; }
   if(!clearIfVisible(edDay)) return;
   let note="";
@@ -911,16 +927,19 @@ function snapSets(){ baseSets={}; PROG().forEach(d=>{ baseSets[d.n]=daySets(d); 
 
 function edFormHTML(){
   const day=PROG()[edDay-1], e=edForm.i>=0?day.ex[edForm.i]:null;
-  const v=e?{name:e.name,sets:e.sets,reps:e.reps,rest:e.rest,inc:e.inc,bw:e.mode==="맨몸"}
-           :{name:"",sets:3,reps:"8-12",rest:90,inc:5,bw:false};
+  const r=repsRange(e?e.reps:"8-12");
+  const v=e?{name:e.name,sets:e.sets,lo:r[0],hi:r[1],rest:e.rest,inc:e.inc,bw:e.mode==="맨몸"}
+           :{name:"",sets:3,lo:8,hi:12,rest:90,inc:5,bw:false};
   return `<div class="edform">
     <div class="rgt">${e?"종목 수정":"종목 추가"} · DAY ${edDay}</div>
     <div class="edf"><label for="ed_name">이름</label>
       <input type="text" id="ed_name" maxlength="40" value="${esc(v.name)}" placeholder="예) 케이블 풀오버"></div>
     <div class="edf"><label for="ed_sets">세트</label>
       <input type="number" id="ed_sets" inputmode="numeric" min="1" max="10" value="${v.sets}"></div>
-    <div class="edf"><label for="ed_reps">반복 범위</label>
-      <input type="text" id="ed_reps" inputmode="numeric" value="${esc(v.reps)}" placeholder="8-12"></div>
+    <div class="edf"><label for="ed_lo">반복 범위</label>
+      <div class="edrange"><input type="number" id="ed_lo" inputmode="numeric" min="1" max="100" value="${v.lo}" aria-label="반복 하한">
+        <span>~</span>
+        <input type="number" id="ed_hi" inputmode="numeric" min="1" max="100" value="${v.hi}" aria-label="반복 상한"></div></div>
     <div class="edf"><label for="ed_rest">휴식 · 초</label>
       <input type="number" id="ed_rest" inputmode="numeric" min="0" max="600" step="15" value="${v.rest}"></div>
     <div class="edf"><label for="ed_inc">증량 · kg</label>
