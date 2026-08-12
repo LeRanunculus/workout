@@ -1,7 +1,7 @@
 /* 배포할 때마다 이 숫자를 올린다.
    안 올리면 고쳐도 폰에는 옛 화면이 그대로 뜬다 — "고쳤는데 왜 안 바뀌지"의 99%가 이것이다.
    화면 하단 환경 표시줄에 이 값이 그대로 나오므로 폰에서 눈으로 확인할 수 있다. */
-const CACHE = "workout-v1";
+const CACHE = "workout-v2";
 
 /* 전부 상대경로다. Pages 는 /workout/ 서브경로로 서비스되므로
    "/index.html" 처럼 절대경로를 쓰면 404 가 난다. */
@@ -54,13 +54,22 @@ function fromNetwork(req) {
   });
 }
 
-function fromCache(req) {
-  return caches.match(req).then(hit =>
-    hit || caches.match("index.html") ||                   // 문서 요청이면 앱 껍데기라도 돌려준다
-    new Response("오프라인이고 캐시에도 없습니다.", {
-      status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
-    })
-  );
+/* ⚠ `hit || caches.match(...) || new Response(...)` 로 쓰지 말 것.
+   caches.match() 는 Promise 를 반환하고 Promise 는 언제나 truthy 라 뒤의 503 은
+   절대 평가되지 않는다. 그 Promise 가 undefined 로 resolve 되면 — install 이
+   allSettled 라 index.html 이 캐시에 없을 수 있다 — respondWith(undefined) 가
+   TypeError 로 죽어서 오프라인에서 앱이 아예 안 열린다. 반드시 await 로 푼다. */
+async function fromCache(req) {
+  const hit = await caches.match(req);
+  if (hit) return hit;
+  // 문서 요청이면 앱 껍데기라도 돌려준다
+  if (req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html")) {
+    const shell = (await caches.match("index.html")) || (await caches.match("./"));
+    if (shell) return shell;
+  }
+  return new Response("오프라인이고 캐시에도 없습니다.", {
+    status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
+  });
 }
 
 self.addEventListener("fetch", e => {

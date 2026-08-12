@@ -183,6 +183,10 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
   font-family:var(--sans);font-size:17px;font-weight:800;cursor:pointer;letter-spacing:-.01em}
 .finish:disabled{background:var(--panel);color:var(--faint);cursor:default}
 .saved{text-align:center;font-family:var(--mono);font-size:13px;color:var(--ok);margin-top:12px;min-height:18px;font-weight:600}
+.resetbtn{width:100%;background:transparent;border:1px solid var(--line);color:var(--dim);
+  font-family:var(--sans);font-size:14px;font-weight:700;padding:14px;border-radius:12px;
+  cursor:pointer;min-height:48px;margin-top:11px}
+.resetbtn:active{background:var(--line)}
 
 .coachbtn{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--chalk);
   font-family:var(--sans);font-size:15px;font-weight:700;padding:16px;border-radius:12px;cursor:pointer;min-height:52px}
@@ -232,9 +236,16 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
   <section class="block" id="finisher"></section>
   <button class="finish" id="finish" disabled>세션 저장</button>
   <div class="saved" id="saved"></div>
-  <section class="block" id="backup" style="display:none"></section>
+  <button class="resetbtn" id="reset" style="display:none">초기화하고 다음 Day 로</button>
+  <section class="block" id="coachbox" style="display:none"></section>
+  <details class="restore" id="exportbox">
+    <summary>기록 백업 · 전체 내보내기</summary>
+    <div class="bakhint">폰을 바꾸거나 사파리 데이터를 지울 때를 대비한 <b>전체 백업</b>입니다.
+      매 세션 누를 필요는 없습니다 — 자동 저장이 돌고 있습니다.</div>
+    <button class="coachbtn" id="exportbtn">전체 기록 텍스트 만들기</button>
+    <div id="backup" style="display:none"></div>
+  </details>
   <div class="env" id="env"></div>
-  <p class="hint">세션이 끝나면 <b>한 번에 복사하기</b>를 꼭 누르세요.<br>그 텍스트 하나에 누적 기록이 전부 들어 있습니다.</p>
 </div>
 
 <div class="rest" id="rest">
@@ -460,7 +471,8 @@ function readJSON(k){
 async function setRetry(key,val,tries){
   tries=tries||3;
   for(let a=0;a<tries;a++){
-    try{ DB.set(key,val); return {ok:true}; }
+    // 성공하면 래치를 푼다 — 용량을 확보하고 다시 누르면 되살아나야 한다
+    try{ DB.set(key,val); storageOK=true; lastErr=""; return {ok:true}; }
     catch(e){
       lastErr=e&&e.message?e.message:String(e);
       if(a<tries-1) await new Promise(r=>setTimeout(r,300*(a+1)));
@@ -474,6 +486,9 @@ const writeJSON=(k,o)=>setRetry(k,JSON.stringify(o),3);
 /* ── 데이터 구조 (SCHEMA.md) ── */
 let program=null, idx=null, monthCache={}, curDay=1,
     entries={}, swaps={}, blocks={}, wl=null, actx=null;
+/* 방금 저장한 세션. 화면에 그대로 남겨두되(사용자가 다시 보고 싶어 한다)
+   드래프트로는 남기지 않고, 다시 저장하면 새 세션을 만드는 대신 같은 id 를 갱신한다. */
+let sessionSaved=false, savedRec=null;
 const PROG=()=>program.days;
 const D=()=>PROG()[curDay-1];
 
@@ -523,13 +538,23 @@ function migrate(){
   const bad=keys.filter(k=>!migrateKey(k));
   if(bad.length) banner(`데이터 변환에 실패했습니다 (${bad.join(", ")}). 기록 백업을 먼저 복사해두세요.`);
 }
-function banner(msg){
-  const el=$("saved"); if(!el) return;
-  el.innerHTML=`<span class="err">${msg}</span>`;
+/* 경고는 화면 맨 위의 전용 배너에 띄운다.
+   #saved 에 쓰면 세션 저장 버튼 아래 두 화면 밑이라 안 보이고, 게다가 Day 행을 탭하면
+   $("saved") 가 비워져 마이그레이션 실패 경고가 조용히 사라진다. */
+function banner(msg,kind){
+  const el=$("banner"); if(!el) return;
+  el.style.display="block";
+  el.innerHTML=`<div class="bt">${kind==="warn"?"확인이 필요합니다":"기록에 문제가 있습니다"}</div>`
+    +`<div class="bd">${msg}</div><button type="button" id="bdismiss">확인했습니다</button>`;
+  const b=$("bdismiss"); if(b) b.addEventListener("click",()=>{ el.style.display="none"; el.innerHTML=""; });
+  el.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
-/* ── 옛 workout-log 이사 (1회) ── */
-function importLegacy(){
+/* ── 옛 workout-log 이사 (1회) ──
+   ⚠ 새 키 쓰기가 전부 성공한 것을 확인하기 전에는 옛 키를 절대 지우지 않는다.
+   사파리 프라이빗 모드나 용량 부족에서는 setItem 만 던지고 removeItem 은 성공하므로,
+   순서를 뒤집으면 아티팩트 시절 이력이 통째로 사라진다. */
+async function importLegacy(){
   const old=readJSON(OLDKEY); if(!old) return;
   const hist=Array.isArray(old.history)?old.history:[];
   hist.slice().reverse().forEach(h=>{                          // 옛 배열은 최신이 앞이다
@@ -551,9 +576,15 @@ function importLegacy(){
       allTop:!!l.allTop, date:/^\d{4}-\d{2}-\d{2}$/.test(l.date||"")?l.date:null};
   });
   idx.months.sort();
-  idx.months.forEach(m=>{ const mo=getMonth(m); mo.sessions.sort((a,b)=>a.date<b.date?-1:1); writeJSON(K.month(m),mo); });
-  idx.rev++; writeJSON(K.index,idx);
-  DB.del(OLDKEY);                                              // 두 번 이사하지 않는다
+  let allOk=true;
+  for(const m of idx.months){
+    const mo=getMonth(m); mo.sessions.sort((a,b)=>a.date<b.date?-1:1);
+    const r=await writeJSON(K.month(m),mo); if(!r.ok) allOk=false;
+  }
+  idx.rev++;
+  const ri=await writeJSON(K.index,idx); if(!ri.ok) allOk=false;
+  if(allOk) DB.del(OLDKEY);                                    // 성공을 확인한 뒤에만. 두 번 이사하지 않는다
+  else banner(`옛 기록을 옮기지 못했습니다 (${lastErr||"저장 실패"}). 옛 데이터는 그대로 두었습니다 — 저장 공간을 확보한 뒤 앱을 다시 열어주세요.`);
 }
 
 /* rotation 갱신 — 마지막 Day 를 끝내고 1로 돌아갈 때 cycles +1 (달력 주차가 아니다) */
@@ -579,7 +610,7 @@ async function load(){
   idx.lastByExercise=idx.lastByExercise||{};
   idx.months=idx.months||[];
   idx.counts=idx.counts||{sessions:0,runs:0};
-  importLegacy();
+  await importLegacy();
   curDay=nextDay();
   restoreDraft();
 }
@@ -597,16 +628,23 @@ function hasDraftContent(d){
   if(Object.keys(d.blocks||{}).length) return true;
   return Object.values(d.entries||{}).some(a=>(a||[]).some(x=>x&&(x.done||x.w!==undefined||x.r!==undefined)));
 }
+let draftWarned=false;
 function flushDraft(){
   clearTimeout(saveTimer); saveTimer=null;
+  // 이미 저장한 세션은 드래프트로 남기지 않는다. 남기면 앱을 다시 열 때
+  // 끝낸 Day 가 "진행 중"으로 되살아나 rotation 을 가로챈다.
   const body=draftBody();
-  if(!hasDraftContent(body)){ try{ DB.del(K.draft); }catch(e){} dirty=false; markUnsaved(); return; }
-  try{ DB.set(K.draft, JSON.stringify(body)); dirty=false; }
-  catch(e){ lastErr=e&&e.message?e.message:String(e); storageOK=false; dirty=true; }
+  if(sessionSaved||!hasDraftContent(body)){ try{ DB.del(K.draft); }catch(e){} dirty=false; markUnsaved(); return; }
+  try{ DB.set(K.draft, JSON.stringify(body)); dirty=false; draftWarned=false; }
+  catch(e){
+    lastErr=e&&e.message?e.message:String(e); storageOK=false; dirty=true;
+    // 조용히 넘기지 않는다 (CLAUDE.md 원칙 3). "미저장" 칩은 정상 저장 중에도 깜빡여서 신호가 안 된다
+    if(!draftWarned){ draftWarned=true;
+      banner(`자동 저장이 멈췄습니다 (${lastErr}). 지금까지의 세트가 폰에 기록되지 않고 있습니다 — 아래 <b>기록 백업</b>을 복사해두세요.`); }
+  }
   markUnsaved();
 }
-function saveDraft(){ dirty=true; markUnsaved(); clearTimeout(saveTimer); saveTimer=setTimeout(flushDraft,1000); }
-function saveDraftNow(){ dirty=true; markUnsaved(); flushDraft(); }
+function saveDraft(){ sessionSaved=false; dirty=true; markUnsaved(); clearTimeout(saveTimer); saveTimer=setTimeout(flushDraft,1000); }
 function clearDraft(){ clearTimeout(saveTimer); saveTimer=null; try{ DB.del(K.draft); }catch(e){} dirty=false; markUnsaved(); }
 function restoreDraft(){
   const d=readJSON(K.draft);
@@ -628,13 +666,11 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 // 대신 화면이 가려지는 순간 즉시 flush 한다. iOS 가 앱을 정리해도 여기까지는 남는다.
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") flushDraft(); });
 window.addEventListener("pagehide",flushDraft);
-function armAudio(){ try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended") actx.resume(); }catch(e){} }
-function beep(){ try{ if(!actx) return; [0,0.18].forEach(t=>{
-  const o=actx.createOscillator(),g=actx.createGain(); o.type="sine"; o.frequency.value=880;
-  g.gain.setValueAtTime(0.0001,actx.currentTime+t);
-  g.gain.exponentialRampToValueAtTime(0.35,actx.currentTime+t+0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+t+0.14);
-  o.connect(g);g.connect(actx.destination); o.start(actx.currentTime+t); o.stop(actx.currentTime+t+0.16); }); }catch(e){} }
+/* 알림음은 걷어냈다 — 2026-08-12 결정. iOS 는 무음 스위치가 켜져 있으면 Web Audio 를
+   재생하지 않고 navigator.vibrate 도 지원하지 않아, 헬스장에서는 어차피 울리지 않는다.
+   사용자가 소리는 필요 없다고 확인했다. 되살리지 말 것 (HANDOFF 「알림음은 포기한다」).
+   타이머는 남은 시간 표시로만 동작한다. */
+function armAudio(){}
 
 /* ask() 는 제거했다 — api.anthropic.com 을 키 없이 부르던 아티팩트 시절 코드다.
    GitHub Pages 에서는 CORS·401 로 100% 실패하고 CLAUDE.md 절대원칙 1 에도 걸린다.
@@ -656,9 +692,17 @@ function renderOverview(){
       </button>`;
     }).join("");
   $("overview").querySelectorAll(".dayrow").forEach(b=>b.addEventListener("click",()=>{
-    curDay=+b.dataset.d; entries={}; swaps={}; blocks={}; saveDraft();
+    if(+b.dataset.d===curDay) return;
+    /* Day 행은 브리핑 바로 위의 전폭 버튼이라 스크롤하다 오탭하기 쉽다.
+       저장하지 않은 세션이 있으면 확인 없이 날리지 않는다 — 자동 저장이 그 삭제까지
+       디스크에 밀어넣기 때문에 되돌릴 방법이 없다. */
+    if(!sessionSaved && doneSets()>0 &&
+       !confirm(`Day ${curDay} 에 저장하지 않은 기록 ${doneSets()}세트가 있습니다.\n지우고 Day ${b.dataset.d} 로 이동할까요?`)) return;
+    curDay=+b.dataset.d; entries={}; swaps={}; blocks={};
+    sessionSaved=false; savedRec=null; clearDraft();
     renderOverview(); renderBrief(); renderBlocks(); render(); stopRest();
-    $("saved").textContent="";
+    $("saved").textContent=""; $("reset").style.display="none";
+    $("coachbox").style.display="none";
     $("brief").scrollIntoView({behavior:"smooth",block:"start"});
   }));
 }
@@ -719,13 +763,17 @@ function renderBlocks(){
     b.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
   });
 }
-function startTimer(sec,name,note){
-  span=sec;left=sec;
-  $("restname").textContent=name; $("restnext").textContent=note;
-  $("rest").classList.add("on");
-  clearInterval(timer);tick();timer=setInterval(tick,1000);
-}
 const nameOf=i=>swaps[i]||D().ex[i].name;
+/* 무게 0 은 "안 더함" 이다 — 머신은 기본 무게, 프리웨이트는 빈 봉, 맨몸은 자기 몸.
+   숫자 0 을 그대로 보여주면 오해를 부르므로 「기본」으로 쓴다. */
+const wTxt=w=>w>0?w+"kg":"기본";
+function lastText(l){
+  const s=l.sets&&l.sets.length?l.sets:null;
+  if(!s) return `${l.w>0?l.w+"kg × ":""}${(l.reps||[]).join(", ")}회`;
+  const same=s.every(v=>v.w===s[0].w);
+  return same ? `${wTxt(s[0].w)} × ${s.map(v=>v.r).join(", ")}회`
+              : s.map(v=>`${wTxt(v.w)}×${v.r}`).join(", ");
+}
 const setsDone=i=>(entries[i]||[]).filter(x=>x&&x.done).length;
 function activeIdx(){ const ex=D().ex; for(let i=0;i<ex.length;i++) if(setsDone(i)<ex[i].sets) return i; return -1; }
 
@@ -740,7 +788,9 @@ function render(){
     const own=idx.lastByExercise[name];
     const fb=(!own&&name!==orig)?idx.lastByExercise[orig]:null;
     const l=own||fb, fallback=!own&&!!fb;
-    const up=!!(own&&own.allTop&&own.w>0);
+    /* 증량 판정에서 w>0 을 요구하지 않는다. 빈 봉이나 머신 기본 무게로 목표 상단을
+       전 세트 채웠다면 다음은 첫 원판을 올릴 차례다. 맨몸 종목만 제외하면 된다. */
+    const up=!!(own&&own.allTop&&wmode!=="맨몸");
     const first=(entries[i]&&entries[i][0])||{};
     const eqTag = equip==="프리"?`<span class="tag free">프리웨이트</span>`
                 : equip==="맨몸"?`<span class="tag free">맨몸</span>`:``;
@@ -749,13 +799,21 @@ function render(){
               : `<span class="tag acc">보조</span>`);
     const rows=Array.from({length:sets},(_,s)=>{
       const v=(entries[i]&&entries[i][s])||{};
+      /* 프리필은 세트별로 맞춘다. 지난번에 30/35/40kg 로 올려가며 했다면
+         이번에도 그 세트에는 그 무게가 떠야 한다. 옛 방식(무게 하나를 전 세트에 복사)은
+         세트마다 무게를 바꾸는 사람에게는 매번 틀린 값을 내민다. */
+      const hs=(l&&l.sets&&l.sets[s])||null;
       let pw=v.w,gw=false;
       if(pw===undefined){
-        if(s>0&&first.w!==undefined){pw=first.w;gw=true;}            // 이번 세션 1세트 값 따라가기
-        else if(l){pw=up?+(l.w+(inc||2.5)).toFixed(1):l.w;gw=true;}  // 지난 기록 → 전 세트에 채움
+        if(hs){ pw=up?+(hs.w+(inc||2.5)).toFixed(1):hs.w; gw=true; }   // 그 세트의 지난 무게
+        else if(s>0&&first.w!==undefined){ pw=first.w; gw=true; }      // 이번 세션 1세트 값 따라가기
+        else if(l){ pw=up?+(l.w+(inc||2.5)).toFixed(1):l.w; gw=true; } // 옛 기록(세트별 무게 없음)
       }
       let pr=v.r,gr=false;
-      if(pr===undefined&&s>0&&first.r!==undefined){pr=first.r;gr=true;}
+      if(pr===undefined){
+        if(hs) pr=hs.r, gr=true;
+        else if(s>0&&first.r!==undefined) pr=first.r, gr=true;
+      }
       return `<div class="set"><span class="sn">${s+1}</span>
         <input type="number" inputmode="decimal" step="0.5" placeholder="${bw?"—":"kg"}" class="${gw?"ghost":""}" ${bw?"disabled":""}
           value="${bw||pw===undefined||pw===0?"":pw}" data-i="${i}" data-s="${s}" data-f="w" aria-label="${name} ${s+1}세트 중량">
@@ -771,9 +829,8 @@ function render(){
         <div class="cue">${cue}</div>
       </div><span class="idx">${String(i+1).padStart(2,"0")}</span></div>
       <div class="last">${!l?"지난 기록 없음 — 가볍게 시작"
-        :fallback?`지난 기록 · ${orig} ${l.w>0?l.w+"kg × ":""}${l.reps.join(", ")}회 <b class="fb">(다른 종목)</b>`
-        :`지난 기록 · ${l.w>0?l.w+"kg × ":""}${l.reps.join(", ")}회`}</div>
-      ${up?`<span class="up">↑ 다음 중량 +${inc||2.5}kg</span>`:(own&&own.w>0?`<span class="keep">지난 중량 유지 · 반복 수를 늘려보세요</span>`:"")}
+        :`지난 기록 · ${fallback?orig+" ":""}${lastText(l)}${fallback?' <b class="fb">(다른 종목)</b>':""}`}</div>
+      ${up?`<span class="up">↑ 다음 중량 +${inc||2.5}kg</span>`:(own?`<span class="keep">지난 중량 유지 · 반복 수를 늘려보세요</span>`:"")}
       <div class="setlabels"><span></span><span>${bw?"맨몸":wmode}${l?" · 제안":""}</span><span>반복</span><span>완료</span></div>
       <div class="sets">${rows}</div>
       ${swaps[i]?`<button class="revert" data-rev="${i}">원래 종목으로 되돌리기</button>`
@@ -855,31 +912,48 @@ function updateProgress(){
   else $("finish").textContent = d===t?"세션 완료 · 저장":"여기까지 저장";
 }
 
-let timer=null,left=0,span=0;
+/* 4-4 — 남은 시간을 1초씩 빼지 않는다.
+   iOS 는 앱이 백그라운드로 가거나 화면이 꺼지면 setInterval 을 멈춘다. 빼는 방식이면
+   멈춰 있던 만큼 그대로 밀린다 — 30초 나갔다 오면 30초 늦게 끝난다.
+   종료 시각을 Date.now() 로 잡아두고 매번 다시 계산하면 돌아오는 순간 정확하다. */
+let timer=null, endAt=0, span=0;
+const leftSec=()=>Math.round((endAt-Date.now())/1000);
 function startRest(sec,name,i,s){
-  span=sec;left=sec;
+  span=sec; endAt=Date.now()+sec*1000;
   const isLast=s+1>=D().ex[i].sets;
   $("restname").textContent=name;
   $("restnext").textContent=isLast?(D().ex[i+1]?"다음 → "+nameOf(i+1):"마지막 종목"):`${s+2}세트 준비`;
   $("rest").classList.add("on");
-  clearInterval(timer);tick();timer=setInterval(tick,1000);
+  clearInterval(timer); tick(); timer=setInterval(tick,1000);
+}
+function startTimer(sec,name,note){
+  span=sec; endAt=Date.now()+sec*1000;
+  $("restname").textContent=name; $("restnext").textContent=note;
+  $("rest").classList.add("on");
+  clearInterval(timer); tick(); timer=setInterval(tick,1000);
 }
 function tick(){
-  const t=$("resttime"),v=Math.abs(left);
+  const left=leftSec(), t=$("resttime"), v=Math.abs(left);
   t.textContent=(left<0?"+":"")+Math.floor(v/60)+":"+String(v%60).padStart(2,"0");
   t.classList.toggle("over",left<=0);
   $("restline").style.width=Math.max(0,Math.min(100,left/span*100))+"%";
-  if(left===0){ if(navigator.vibrate) navigator.vibrate([140,90,140]); beep(); }
-  left--; if(left<-180) stopRest();
+  if(left<-180) stopRest();
 }
 function stopRest(){ clearInterval(timer);timer=null;$("rest").classList.remove("on"); }
 $("skip").addEventListener("click",stopRest);
-$("plus30").addEventListener("click",()=>{left+=30;span+=30;tick();});
+$("plus30").addEventListener("click",()=>{ endAt+=30000; span+=30; tick(); });
+// 돌아온 순간 바로 맞는 값을 보여준다 — 다음 tick 을 1초 기다리지 않는다
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&timer) tick(); });
 
 $("finish").addEventListener("click",async()=>{
   const date=today(), m=monthOf(date), day=curDay;
+  /* 같은 화면 상태를 다시 저장하는 것이면 새 세션을 만들지 않고 그 세션을 갱신한다.
+     id 를 매번 새로 뽑으면 중복 제거가 죽은 코드가 되어, 저장 실패 후 재시도할 때마다
+     같은 날짜의 세션이 쌓이고 counts 와 rotation.cycles 까지 두 번씩 오른다. */
+  const again = savedRec && savedRec.date===date && savedRec.day===day;
   // 시각은 어디에도 남기지 않는다 — id 는 날짜 + 4자리 무작위 (SCHEMA)
-  const rec={id:newId("w",date), date, day, title:D().title, exercises:[], rev:1};
+  const rec={id: again?savedRec.id:newId("w",date), date, day, title:D().title,
+             exercises:[], rev: again?(savedRec.rev+1):1};
   D().ex.forEach((e,i)=>{
     const name=nameOf(i);
     const arr=(entries[i]||[]).filter(x=>x&&x.done&&x.r);
@@ -890,8 +964,13 @@ $("finish").addEventListener("click",async()=>{
       rir:null,                          // RIR 칩은 4단계
       sets:arr.map(x=>({w:x.w||0,r:x.r}))
     });
-    // 쓰기는 언제나 실제 수행 종목 키다. 폴백을 만들다 원래 종목을 덮어쓰면 안 된다
-    idx.lastByExercise[name]={w:arr[arr.length-1].w||0, reps:arr.map(x=>x.r), rir:null,
+    /* 쓰기는 언제나 실제 수행 종목 키다. 폴백을 만들다 원래 종목을 덮어쓰면 안 된다.
+       sets 는 세트별 무게를 그대로 담는다 — w 하나만 두면 30/35/40kg 처럼 세트마다
+       무게를 올린 날의 기록이 "40kg 로 10회" 처럼 거짓이 된다. w·reps 는 하위 호환용으로 남긴다. */
+    idx.lastByExercise[name]={
+      w:arr[arr.length-1].w||0, reps:arr.map(x=>x.r),
+      sets:arr.map(x=>({w:x.w||0,r:x.r})),
+      mode:e.mode, rir:null,
       allTop:arr.length===e.sets&&arr.every(x=>x.r>=e.top), date};
   });
 
@@ -900,44 +979,53 @@ $("finish").addEventListener("click",async()=>{
   if(at>=0) mo.sessions[at]=rec; else mo.sessions.push(rec);
   mo.sessions.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
   if(!idx.months.includes(m)){ idx.months.push(m); idx.months.sort(); }
-  idx.counts.sessions++;
-  applyRotation(day,date);
+  if(!again){ idx.counts.sessions++; applyRotation(day,date); }   // 갱신일 때는 두 번 세지 않는다
   idx.rev++;
 
-  const r1 = storageOK===false ? {ok:false,err:lastErr} : await writeJSON(K.month(m),mo);
+  const r1 = await writeJSON(K.month(m),mo);     // storageOK 로 막지 않는다 — 성공하면 래치가 풀린다
   const r2 = r1.ok ? await writeJSON(K.index,idx) : r1;
   const r  = r1.ok ? r2 : r1;
   const ok = r.ok;
-  const nSets = doneSets();                  // 화면 상태를 비우기 전에 세어둔다
+  const nSets = doneSets();
   if(ok){
-    /* 저장에 성공하면 메모리의 세션 상태도 비운다.
-       안 비우면 다음 pagehide 가 방금 저장한 값으로 드래프트를 다시 만들고,
-       앱을 다시 열었을 때 끝낸 Day 가 "진행 중"으로 되살아나 rotation 을 가로챈다.
-       실패했을 때는 절대 비우지 않는다 — 그 값이 유일하게 남은 기록이다. */
-    entries={}; swaps={}; blocks={};
+    /* 화면은 그대로 둔다 — 방금 기록한 것을 다시 볼 수 있어야 한다.
+       대신 sessionSaved 로 표시해 드래프트를 남기지 않는다. 안 그러면 앱을 다시 열 때
+       끝낸 Day 가 "진행 중"으로 되살아나 rotation 을 가로챈다.
+       화면을 비우는 것은 「초기화」 버튼이 맡는다. 실패했을 때는 아무것도 건드리지 않는다. */
+    sessionSaved=true; savedRec={id:rec.id,date,day,rev:rec.rev};
     clearDraft();
-    curDay=nextDay();
-    $("saved").textContent=`저장됨 · ${date} Day ${day} · ${nSets}세트 — 다음은 Day ${curDay}`;
+    $("saved").textContent=`저장됨 · ${date} Day ${day} · ${nSets}세트 — 다음은 Day ${nextDay()}`;
     $("saved").className="saved";
+    $("reset").style.display="block";
   }else{
-    $("saved").innerHTML = storageOK===false
-      ? `<span class="err">자동 저장 불가 환경 — 아래 <b>기록 백업</b>을 복사해 메모 앱에 보관하세요.</span>`
-      : `<span class="err">저장 실패 — ${r.err||"원인 미상"}<br>아래 <b>기록 백업</b>을 눌러 텍스트로 복사해두세요.</span>`;
+    $("saved").innerHTML=`<span class="err">저장 실패 — ${r.err||"원인 미상"}<br>화면의 기록은 그대로 있습니다. 아래 <b>기록 백업</b>을 눌러 텍스트로 복사해두세요.</span>`;
   }
-  showBackup(rec);
-  setTimeout(()=>$("backup").scrollIntoView({behavior:"smooth",block:"start"}),200);
+  showCoach(rec);
+  setTimeout(()=>$("coachbox").scrollIntoView({behavior:"smooth",block:"start"}),200);
   stopRest(); renderOverview(); renderBrief(); renderBlocks(); render();
 });
 
-/* 「세션 코치」(AI 호출)는 제거했다 — SPEC 4-3.
-   4단계에서 같은 자리에 「코칭 프롬프트 복사」가 들어간다. 담을 항목은
-   SCHEMA 「코칭 프롬프트」 표를 따른다 — 오늘 세션 · 오늘 Day 의 목표 ·
-   같은 Day 이전 2회 · 최근 러닝 3회 · 주차와 디로드 여부 · 사용자 상황 · 답변 형식.
-   CONTEXT 상수는 그때 쓰므로 남겨둔다. */
+/* 「초기화」 — 저장한 세션을 화면에서 지우고 다음 Day 로 넘어간다.
+   저장 후 화면을 그대로 두기로 했으므로 넘어가는 동작이 명시적으로 필요하다. */
+$("reset").addEventListener("click",()=>{
+  if(!sessionSaved && doneSets()>0 && !confirm("아직 저장하지 않은 기록이 있습니다. 지우고 초기화할까요?")) return;
+  entries={}; swaps={}; blocks={}; sessionSaved=false; savedRec=null;
+  clearDraft();
+  curDay=nextDay();
+  $("saved").textContent=""; $("reset").style.display="none";
+  $("coachbox").style.display="none"; $("backup").style.display="none";
+  stopRest(); renderOverview(); renderBrief(); renderBlocks(); render();
+  $("brief").scrollIntoView({behavior:"smooth",block:"start"});
+});
 
-/* 백업 내보내기 — SCHEMA 「클립보드 텍스트」.
-   7단계 전까지 이것이 유일한 복구 수단이다. 세션 이력 전체 + 프로그램을 담고
-   최신 세션을 맨 위에 둔다. 새 정보는 전부 `·` 뒤에 붙여 옛 파서를 깨지 않는다. */
+/* 클립보드 텍스트는 둘이다 (SCHEMA 「클립보드 텍스트 — 두 번째 계약」).
+   길이와 용도가 다르므로 같은 것을 두 자리에 쓰면 안 된다.
+
+     코칭 프롬프트 — 세션 끝날 때마다. 오늘 + 같은 Day 직전 2회 + 맥락. 짧을수록 좋다
+     백업 내보내기 — 가끔. 전체 이력 + 프로그램. 길어도 된다
+
+   예전에는 백업 하나가 두 자리를 겸했다. 세션이 쌓일수록 매번 보는 텍스트가 길어져
+   실사용에서 못 쓰게 된다 — 2세션 만에 60줄이 됐다. 그래서 분리한다. */
 const RIRTXT={easy:"여유있었음",ontarget:"딱맞았음",limit:"한계였음"};
 function sessionLines(s){
   const out=[`[${s.date}] Day ${s.day} · ${s.title||""}`.trimEnd()];
@@ -965,65 +1053,143 @@ function logText(){
   const all=allSessions();
   if(all.length) all.forEach((s,i)=>{ if(i) lines.push(""); lines.push(...sessionLines(s)); });
   else lines.push("(아직 저장된 세션이 없습니다)");
-  const acc=Object.keys(idx.lastByExercise);
-  if(acc.length){
-    lines.push("", "--- 누적 기록 (다음 세션에 이 텍스트 전체를 붙여넣으세요) ---");
-    acc.forEach(k=>{
+  /* 「누적 기록」 섹션은 없앴다. 「기록」이 이미 같은 내용을 담고 있어 길이만 두 배가 되고,
+     종목당 무게를 하나만 담아 세트별로 무게를 바꾼 날의 기록이 뭉개졌다.
+     파서를 first-wins 로 바꿨으므로 최신순 「기록」만으로 정확히 복원된다.
+     「기록」에 없는 종목(옛 텍스트로만 복원해 둔 것)이 있으면 그것만 덧붙인다. */
+  const inLog=new Set(all.flatMap(s=>(s.exercises||[]).map(x=>x.name)));
+  const orphan=Object.keys(idx.lastByExercise).filter(k=>!inLog.has(k));
+  if(orphan.length){
+    lines.push("", "--- 세션 기록이 없는 종목 ---");
+    orphan.forEach(k=>{
       const l=idx.lastByExercise[k];
       const was=(l.was&&l.was.length)?` (옛 이름: ${l.was.join(", ")})`:"";
-      lines.push(`${k}: ${(l.reps||[]).map(r=>`${l.w||0}kg x ${r}`).join(", ")}${was}`);
+      const pairs=(l.sets&&l.sets.length)?l.sets.map(v=>`${v.w||0}kg x ${v.r}`)
+                                         :(l.reps||[]).map(r=>`${l.w||0}kg x ${r}`);
+      lines.push(`${k}: ${pairs.join(", ")}${was}`);
     });
   }
   return lines.join("\n");
 }
 // 백업 텍스트를 되읽어 지난 기록을 복원한다 (저장소가 없어도 동작)
+/* ⚠ first-wins 다. 「기록」이 최신순으로 나열되므로 처음 만난 줄이 가장 최근 기록이다.
+   예전처럼 나중 것이 이기게 두면 가장 오래된 세션의 값이 최종으로 남는다.
+   같은 이유로 day 도 첫 헤더에서 잡는다 — 마지막 헤더는 가장 오래된 세션이다.
+   v1 옛 텍스트는 종목당 한 줄뿐이라 first-wins 여도 결과가 같다. */
 function parseBackup(text){
-  let day=null, date=null;
-  const seen=new Set();          // 「기록」과 「누적」에 같은 종목이 또 나온다. 줄이 아니라 종목을 센다
+  let firstDay=null, date=null;
   const planTop={};
   PROG().forEach(d=>d.ex.forEach(e=>{ planTop[e.name]=[e.top,e.sets]; }));
+  const got={};
   text.split("\n").forEach(raw=>{
     const line=raw.trim();
-    // 구분선을 지나면 날짜 문맥이 끊긴다 — 헤더 없는 「누적 기록」 섹션은 date가 null이어야 한다
-    if(line.startsWith("---")){ date=null; return; }
+    if(line.startsWith("---")){ date=null; return; }   // 구분선을 지나면 날짜 문맥이 끊긴다
     if(!line) return;
     const h=line.match(/^\[([^\]]*)\]\s*Day\s*(\d+)/);
-    if(h){ day=+h[2];
+    if(h){
+      if(firstDay===null) firstDay=+h[2];
       const dt=h[1].trim(); date=/^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : null;
       return; }
     const i=line.indexOf(":");
     if(i<1) return;
     const name=line.slice(0,i).trim();
+    if(got[name]) return;                              // 먼저 나온 것(=최신)이 이긴다
     const pairs=[...line.slice(i+1).matchAll(/(\d+(?:\.\d+)?)\s*kg\s*x\s*(\d+)/g)];
     if(!pairs.length) return;
-    const w=+pairs[pairs.length-1][1], reps=pairs.map(p=>+p[2]);
+    const sets=pairs.map(p=>({w:+p[1], r:+p[2]}));     // 세트별 무게를 그대로 살린다
+    const reps=sets.map(v=>v.r);
     const t=planTop[name];
-    // 헤더 없는 「누적」 섹션이 뒤에 와도 이미 읽어둔 실제 날짜를 null 로 낮추지 않는다
-    const prev=idx.lastByExercise[name];
-    idx.lastByExercise[name]={w, reps, rir:null, date: date || (prev&&prev.date) || null,
+    got[name]={w:sets[sets.length-1].w, reps, sets, rir:null, date,
       allTop: !!(t && reps.length===t[1] && reps.every(r=>r>=t[0]))};
-    seen.add(name);
   });
-  return {count:seen.size, day};
+  Object.entries(got).forEach(([name,v])=>{
+    const prev=idx.lastByExercise[name];
+    // 헤더가 없어 날짜를 모르면, 이미 알고 있던 날짜를 null 로 낮추지 않는다
+    idx.lastByExercise[name]={...v, date: v.date || (prev&&prev.date) || null};
+  });
+  return {count:Object.keys(got).length, day:firstDay};
 }
-function showBackup(rec){
+/* ⚠ iOS 클립보드 — writeText 는 사용자 제스처 안에서 즉시 호출돼야 한다.
+   앞에 다른 await 가 끼면 권한이 만료돼 조용히 실패한다.
+   문자열은 동기적으로 다 만들어 두고 writeText 를 첫 await 로 둔다. */
+function bindCopy(btnId,textId){
+  $(btnId).addEventListener("click",async()=>{
+    const t=$(textId), btn=$(btnId), label=btn.textContent;
+    try{ await navigator.clipboard.writeText(t.value); btn.textContent="복사됨"; }
+    catch(e){ t.select(); document.execCommand&&document.execCommand("copy"); btn.textContent="복사됨 (길게 눌러 복사도 가능)"; }
+    setTimeout(()=>{ btn.textContent=label; },2500);
+  });
+}
+function showBackup(){
   const box=$("backup");
   box.style.display="block";
-  box.innerHTML=`<span class="eyebrow">기록 백업</span>
-    <textarea id="baktext" readonly rows="9">${logText()}</textarea>
+  box.innerHTML=`<textarea id="baktext" readonly rows="9">${logText()}</textarea>
     <button class="coachbtn" id="bakcopy" style="background:var(--brass);color:#2B2836;border-color:var(--brass)">한 번에 복사하기</button>
-    <div class="bakhint">이 텍스트를 메모장에 붙여두고, 다음 세션 시작할 때 맨 위 "지난 기록 불러오기"에 그대로 붙여넣으면 중량이 복원됩니다.</div>`;
-  $("bakcopy").addEventListener("click",async()=>{
-    const t=$("baktext");
-    try{ await navigator.clipboard.writeText(t.value); $("bakcopy").textContent="복사됨"; }
-    catch(e){ t.select(); document.execCommand&&document.execCommand("copy"); $("bakcopy").textContent="복사됨 (길게 눌러 복사도 가능)"; }
-  });
+    <div class="bakhint">메모 앱에 붙여두세요. 맨 위 "지난 기록 불러오기"에 그대로 붙여넣으면 복원됩니다.</div>`;
+  bindCopy("bakcopy","baktext");
+}
+$("exportbtn").addEventListener("click",showBackup);
+
+/* 코칭 프롬프트 — 세션 끝날 때마다 쓰는 것. 이력이 쌓여도 길이가 일정하다.
+   담을 항목은 SCHEMA 「코칭 프롬프트」 표를 따른다. 러닝(6단계)과 RIR(4-1)은
+   아직 데이터가 없어 빠져 있고, 생기면 여기에 줄을 더한다. */
+function coachText(rec){
+  const d=PROG()[rec.day-1]||D();
+  const goal=(rec.exercises||[]).map(x=>{
+    const e=d.ex.find(z=>z.name===x.planned)||d.ex.find(z=>z.name===x.name);
+    return e?`${x.name}: 목표 ${e.sets}x${e.reps} RIR ${e.rir} (증량단위 ${e.inc}kg)`:null;
+  }).filter(Boolean);
+  // 같은 Day 직전 2회 — 오늘 것은 뺀다
+  const prev=allSessions().filter(s=>s.day===rec.day&&s.id!==rec.id).slice(0,2);
+  const L=[
+    `아래는 오늘 웨이트 세션 기록이다. 다음에 같은 Day를 할 때 무엇을 바꿔야 하는지 코칭하라.`,
+    ``,
+    `[오늘 · ${rec.date} Day ${rec.day} ${rec.title}]`,
+    ...sessionLines(rec).slice(1),
+    ``,
+    `[오늘 Day의 목표]`,
+    ...(goal.length?goal:["(없음)"]),
+    ``,
+    `[같은 Day 이전 기록]`,
+    ...(prev.length?prev.flatMap(s=>sessionLines(s)):["이전 기록 없음"]),
+    ``,
+    `[진행 상황]`,
+    `${idx.rotation.cycles}바퀴 완주 · 누적 ${idx.counts.sessions}세션` +
+      (idx.rotation.cycles>=6?" · 디로드 권고 구간":""),
+    ``,
+    `[사용자 상황]`,
+    CONTEXT,
+    ``,
+    `[진행 규칙]`,
+    `이중 점진 — 목표 반복 범위 상단을 전 세트 달성하면 다음에 한 단계 증량. 상단에 못 미치면 같은 중량 유지. 실패 지점까지 밀지 않는다. 무게 0kg은 머신 기본 무게 또는 빈 봉을 뜻한다.`,
+    ``,
+    `[답변 형식]`,
+    `한국어로. 항목당 한 줄, 최대 4줄. "종목명 — 다음 조치" 형태로 구체적 숫자 포함. 마지막 한 줄로 전반 코멘트. 인사말 없이 바로 시작. 마크다운 기호 금지.`
+  ];
+  return L.join("\n");
+}
+function showCoach(rec){
+  const box=$("coachbox");
+  box.style.display="block";
+  box.innerHTML=`<span class="eyebrow">세션 코치</span>
+    <button class="coachbtn" id="coachcopy" style="background:var(--brass);color:#2B2836;border-color:var(--brass)">코칭 프롬프트 복사</button>
+    <div class="bakhint">복사해서 Claude 앱에 붙여넣으세요.</div>
+    <textarea id="coachtext" readonly rows="6">${coachText(rec)}</textarea>`;
+  bindCopy("coachcopy","coachtext");
 }
 function applyRestore(text,src){
   const r=parseBackup(text||"");
   if(!r.count){ $("resmsg").innerHTML='<span class="err">읽을 수 있는 기록이 없습니다. "종목명: 20kg x 10, ..." 형식이어야 합니다.</span>'; return false; }
-  if(r.day) curDay=(r.day % PROG().length)+1;
-  idx.rev++; writeJSON(K.index,idx);          // 복원 결과를 바로 눌러 담는다
+  /* rotation 이 Day 순환의 단일 진실이다. curDay 만 옮기고 rotation 을 두면
+     앱을 다시 열었을 때 복원한 위치가 사라지고 Day 1 부터 다시 시작한다. */
+  if(r.day){
+    applyRotation(r.day, idx.rotation.lastDate || today());
+    curDay=nextDay();
+  }
+  idx.rev++;
+  writeJSON(K.index,idx).then(w=>{            // 결과를 확인한다 — 조용히 실패하면 안 된다
+    if(!w.ok) banner(`복원한 내용을 저장하지 못했습니다 (${w.err||"원인 미상"}). 앱을 다시 열면 사라집니다 — 저장 공간을 확보하고 다시 시도해주세요.`);
+  });
   renderOverview(); renderBrief(); renderBlocks(); render();
   // 복원된 내용을 그대로 보여준다 — 어느 Day에 들어갔는지까지
   let html=`<div class="okline">${src} 종목 ${r.count}개 복원 완료</div>`;
@@ -1032,7 +1198,7 @@ function applyRestore(text,src){
     if(!hit.length) return;
     html+=`<div class="rgroup"><div class="rgt">DAY ${d.n} · ${d.title}</div>`
       + hit.map(e=>{ const l=idx.lastByExercise[e.name];
-          return `<div class="rgi"><span>${e.name}</span><span class="rgv">${l.w>0?l.w+"kg":"기본"} × ${l.reps.join(", ")}${l.allTop?' <b>↑증량</b>':''}</span></div>`;
+          return `<div class="rgi"><span>${e.name}</span><span class="rgv">${lastText(l)}${l.allTop?' <b>↑증량</b>':''}</span></div>`;
         }).join("") + `</div>`;
   });
   if(r.day) html+=`<div class="okline">화면은 다음 차례인 <b>Day ${curDay}</b>로 이동했습니다. 위 목록의 Day를 눌러 확인할 수 있습니다.</div>`;
@@ -1065,14 +1231,16 @@ function askSWVersion(){
     try{ c.postMessage("version",[ch.port2]); }catch(e){ clearTimeout(t); res(null); }
   });
 }
+/* 「진동」과 「알림음」 표시등은 뺐다 (SPEC 4-6).
+   진동은 iOS 가 지원하지 않아 폰에서 늘 ○ 였고, 알림음은 하드코딩된 초록불이었는데
+   소리를 포기했으므로 거짓 표시가 된다. 그 자리에 캐시 버전을 둔다. */
 async function envCheck(){
   const ok=storageOK!==false;               // probeStorage() 가 실제로 대입한다 (0-2)
-  const wake="wakeLock" in navigator, vib=!!navigator.vibrate;
+  const wake="wakeLock" in navigator;
   const swOn=("serviceWorker" in navigator);
   const ver=await askSWVersion();
   $("env").innerHTML=`<span class="${ok?"y":"n"}">${ok?"●":"○"} 기록 저장</span>`+
     `<span class="${wake?"y":"n"}">${wake?"●":"○"} 화면 유지</span>`+
-    `<span class="${vib?"y":"n"}">${vib?"●":"○"} 진동</span><span class="y">● 알림음</span>`+
     `<span class="${ver?"y":"n"}">${ver?"● "+ver:(swOn?"○ 오프라인 준비 중":"○ 오프라인 미지원")}</span>`+
     (ok?"":`<span class="n">저장소를 쓸 수 없는 환경입니다${lastErr?" ("+lastErr+")":""} — 세션 끝에 기록 백업을 복사해두세요</span>`);
 }
