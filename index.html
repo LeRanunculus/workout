@@ -121,6 +121,7 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
 .exname{font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.25}
 .exname .swapped{font-family:var(--mono);font-size:11px;color:var(--brass);letter-spacing:.06em;display:block;margin-top:5px;font-weight:600}
 .extarget{font-family:var(--mono);font-size:14px;color:var(--brass);margin-top:7px;font-weight:700}
+.extarget em{font-style:normal;color:var(--alarm);font-size:12.5px}
 .cue{font-size:13.5px;color:var(--dim);margin-top:7px;line-height:1.45}
 .idx{font-family:var(--mono);font-size:13px;color:var(--faint);font-weight:700;padding-top:3px}
 .last{font-family:var(--mono);font-size:13px;color:var(--faint);margin-top:8px;font-weight:600}
@@ -129,6 +130,87 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
   border-radius:20px;margin-top:9px}
 .up{display:inline-block;background:rgba(111,174,143,.18);border:1px solid rgba(111,174,143,.45);
   color:var(--ok);font-family:var(--mono);font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:20px;margin-top:9px}
+
+/* ── 세션 중 퀵수정 ──
+   자리가 곧 범위다. 카드에서 하는 것은 언제나 오늘만, ⚙ 시트에서 하는 것은 언제나 계획.
+   그래서 「다음부터도 적용」 체크박스가 없다 — 어디서 눌렀는지가 답이다. */
+.skipbox{margin-left:auto;display:flex;align-items:center;gap:7px;height:44px;padding:0 10px;
+  border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;
+  font-family:var(--mono);font-size:11px;font-weight:700;color:var(--dim);white-space:nowrap;flex-shrink:0}
+.skipbox .bx{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--alarm);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:transparent}
+.skipbox[aria-pressed="true"]{border-color:var(--alarm);color:var(--alarm)}
+.skipbox[aria-pressed="true"] .bx{background:var(--alarm);color:#2B2836}
+.gearbtn{width:44px;height:44px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--dim);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gearbtn[aria-expanded="true"]{border-color:var(--brass);color:var(--brass);background:rgba(224,168,60,.16)}
+.skipbox:focus-visible,.gearbtn:focus-visible,.qbtn:focus-visible,.qchip:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+/* 세트 증감 — 세트 그리드에 정렬해 목록의 연장으로 보이게 한다 */
+.setctl{display:grid;grid-template-columns:26px 1fr 1fr 62px;gap:8px;margin-top:8px}
+.addset{grid-column:2 / 4;min-height:44px;border:1px dashed var(--line);border-radius:10px;background:transparent;
+  color:var(--dim);font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer}
+.delset{grid-column:4;min-height:44px;border:1px dashed var(--line);border-radius:10px;background:transparent;
+  color:var(--faint);font-family:var(--mono);font-size:16px;font-weight:800;cursor:pointer}
+.delset:disabled{opacity:.3;cursor:default}
+.addset:active,.delset:active:not(:disabled){background:var(--panel2)}
+.skipcard{background:var(--panel);border:1px dashed var(--line);border-radius:15px;padding:13px;
+  margin-bottom:11px;display:flex;align-items:center;gap:11px}
+.skipcard .sname{font-size:15px;font-weight:700;text-decoration:line-through;color:var(--faint)}
+.skipcard .snote{font-family:var(--mono);font-size:10.5px;color:var(--faint);font-weight:700;margin-top:3px}
+/* ⚙ 시트 */
+.qsheet{background:var(--panel2);border:1px solid var(--line);border-top-color:var(--brass);
+  border-radius:12px;padding:13px;margin-top:11px}
+.qz{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;
+  color:var(--faint);margin:15px 0 9px;display:flex;align-items:center;gap:8px}
+.qz:first-child{margin-top:0}
+.qz::after{content:"";flex:1;height:1px;background:var(--line)}
+.qz.today{color:var(--brass)} .qz.prog{color:var(--slate)}
+.qrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;flex-wrap:wrap}
+.qrow .ql{font-size:14px;font-weight:700;color:var(--chalk)}
+.qrow .ql i{display:block;font-style:normal;font-family:var(--mono);font-size:10.5px;
+  color:var(--faint);font-weight:600;margin-top:2px}
+.qgrp{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.qbtn{width:44px;height:44px;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  color:var(--chalk);font-family:var(--mono);font-size:17px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.qbtn:disabled{opacity:.3;cursor:default}
+.qval{font-family:var(--mono);font-size:18px;font-weight:800;min-width:44px;text-align:center;
+  color:var(--brass);font-variant-numeric:tabular-nums}
+.qchips{display:flex;flex-wrap:wrap;gap:6px}
+.qchip{min-height:44px;min-width:48px;padding:0 13px;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  color:var(--dim);font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer}
+.qchip[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#2B2836}
+.qtwo{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.qtwo input{width:64px;background:var(--panel);border:1px solid var(--line);border-radius:9px;color:var(--chalk);
+  font-family:var(--mono);font-size:19px;font-weight:700;text-align:center;padding:9px 2px;min-height:44px;
+  font-variant-numeric:tabular-nums}
+.qtwo input:focus{outline:none;border-color:var(--brass);background:#46415A}
+.qtwo input::-webkit-outer-spin-button,.qtwo input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qtwo input[type=number]{-moz-appearance:textfield}
+.qtwo span{font-family:var(--mono);font-size:13px;color:var(--faint);font-weight:700}
+.qact{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--brass);border-radius:9px;padding:13px;color:var(--chalk);
+  font-family:var(--sans);font-size:13.5px;font-weight:700;cursor:pointer;min-height:48px;margin-bottom:7px}
+.qact.plain{border-left-color:var(--line)}
+.qact .aw{display:block;font-size:12.5px;color:var(--dim);font-weight:600;margin-top:3px}
+.qdone{width:100%;background:var(--brass);color:#2B2836;border:0;border-radius:10px;padding:14px;
+  font-family:var(--sans);font-size:14.5px;font-weight:800;cursor:pointer;margin-top:12px;min-height:48px}
+.qerr{color:var(--alarm);font-size:12.5px;margin-top:7px;line-height:1.5}
+/* 오늘 종목 추가 */
+.addex{width:100%;border:1px dashed var(--line);border-radius:13px;background:transparent;color:var(--dim);
+  font-family:var(--sans);font-size:13.5px;font-weight:700;padding:15px;cursor:pointer;
+  min-height:48px;margin-bottom:11px}
+.addex:active{background:var(--panel)}
+.pickchip{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:10px 12px;
+  color:var(--chalk);font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;
+  min-height:48px;text-align:left}
+.pickchip .src{display:block;font-family:var(--mono);font-size:9.5px;color:var(--faint);font-weight:700;margin-top:3px}
+.qname{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;color:var(--chalk);
+  font-family:var(--sans);font-size:16px;font-weight:700;padding:12px;min-height:48px;margin-bottom:8px}
+.qname:focus{outline:none;border-color:var(--brass)}
+.qswitch{display:flex;align-items:center;gap:10px;min-height:46px;cursor:pointer;
+  font-size:12.5px;color:var(--dim);line-height:1.4;margin-top:6px}
+.qswitch input{width:21px;height:21px;accent-color:var(--brass);flex-shrink:0}
 
 .sets{margin-top:13px;display:flex;flex-direction:column;gap:8px}
 .set,.setlabels{display:grid;grid-template-columns:26px 1fr 1fr 62px;gap:8px;align-items:center}
@@ -150,19 +232,8 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
   display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--faint);
   transition:background .15s,color .15s,border-color .15s}
 .chk[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#2B2836}
-.chk:focus-visible,.swapbtn:focus-visible,.alt:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
-
-.swapbtn{margin-top:13px;width:100%;background:transparent;border:1px dashed var(--line);color:var(--dim);
-  font-family:var(--sans);font-size:14px;font-weight:600;padding:12px;border-radius:10px;cursor:pointer;min-height:46px}
-.swapbtn:active{background:var(--panel2)}
-.alts{margin-top:10px;display:flex;flex-direction:column;gap:8px}
-.alt{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--brass);
-  border-radius:10px;padding:13px 14px;cursor:pointer;min-height:52px}
-.alt:active{background:var(--line)}
-.alt .an{font-size:16px;font-weight:700}
-.alt .aw{font-size:13.5px;color:var(--dim);margin-top:4px;line-height:1.45}
-.revert{background:none;border:0;color:var(--faint);font-family:var(--sans);font-size:12.5px;
-  text-decoration:underline;cursor:pointer;padding:8px 0;margin-top:4px}
+.chk:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+/* .swapbtn / .alts / .alt / .revert 는 걷어냈다 — 대체 종목은 ⚙ 시트의 「오늘만」 구역으로 옮겼다 */
 
 .rest{position:fixed;left:0;right:0;bottom:0;background:var(--panel2);border-top:1px solid var(--line);
   padding:15px 14px calc(15px + env(safe-area-inset-bottom));transform:translateY(115%);
@@ -283,6 +354,8 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
   <section class="block" id="warmup"></section>
   <div class="prog"><div class="bar"><i id="bar"></i></div><span class="c" id="count">0 / 0 세트</span><span class="unsaved" id="unsaved" style="display:none">미저장</span></div>
   <div id="list"></div>
+  <button class="addex" id="addex">+ 오늘 종목 추가</button>
+  <div id="addsheet"></div>
   <section class="block" id="finisher"></section>
   <button class="finish" id="finish" disabled>세션 저장</button>
   <div class="saved" id="saved"></div>
@@ -543,8 +616,20 @@ let program=null, idx=null, monthCache={}, curDay=1,
 /* 방금 저장한 세션. 화면에 그대로 남겨두되(사용자가 다시 보고 싶어 한다)
    드래프트로는 남기지 않고, 다시 저장하면 새 세션을 만드는 대신 같은 id 를 갱신한다. */
 let sessionSaved=false, savedRec=null;
+/* ── 세션 전용 상태 (퀵수정) ──
+   오늘만 사는 값이다. wk:program 은 건드리지 않고 드래프트에만 실린다.
+   sessionAdds 는 언제나 목록 맨 뒤에 붙는다 — entries·swaps 가 인덱스 키라
+   중간에 끼워 넣으면 이미 입력한 값이 옆 종목으로 밀린다. */
+let sessionSets={}, sessionSkip={}, sessionAdds=[], openSheet=-1, sheetBase=0;
 const PROG=()=>program.days;
 const D=()=>PROG()[curDay-1];
+/* 오늘 실제로 화면에 뜨는 종목 목록. 계획 + 오늘 추가분.
+   D().ex 를 직접 쓰면 오늘 추가한 종목이 빠진다 — 인덱스가 어긋나는 원인이 된다. */
+const todayEx=()=>sessionAdds.length?D().ex.concat(sessionAdds):D().ex;
+const isAdded=i=>i>=D().ex.length;
+// 오늘의 세트 수. 계획값을 덮어쓰지 않고 얹는다
+const setsOf=i=>{ const v=sessionSets[i]; return v>0?v:(todayEx()[i]||{}).sets||0; };
+function clearSession(){ sessionSets={}; sessionSkip={}; sessionAdds=[]; openSheet=-1; }
 
 function blankProgram(){
   return {schema:SCHEMA_VER, rev:1, basedOn:localDate(),
@@ -672,7 +757,8 @@ async function load(){
 /* ── 자동 저장 (0-4 / SPEC 1-3) ──
    localStorage 는 호출 비용이 없다. "저장 버튼을 눌러야만 저장"에서 되돌린다. */
 let saveTimer=null;
-function draftBody(){ return {schema:SCHEMA_VER, date:today(), day:curDay, entries, swaps, blocks}; }
+function draftBody(){ return {schema:SCHEMA_VER, date:today(), day:curDay, entries, swaps, blocks,
+                              sessionSets, sessionSkip, sessionAdds}; }
 /* "진행 중인 세션"의 근거는 실제로 기록한 것뿐이다 — 세트 입력·완료, 웜업/마무리 체크.
    대체 종목만 골라둔 상태는 세션이 아니다. 그것까지 세면 Day 를 둘러보다 대체를 한 번
    눌러본 것만으로 드래프트가 남아 다음 실행 때 rotation 의 Day 를 가로챈다.
@@ -704,6 +790,8 @@ function restoreDraft(){
   const d=readJSON(K.draft);
   if(!hasDraftContent(d)) return;
   entries=d.entries||{}; swaps=d.swaps||{}; blocks=d.blocks||{};
+  sessionSets=d.sessionSets||{}; sessionSkip=d.sessionSkip||{};
+  sessionAdds=Array.isArray(d.sessionAdds)?d.sessionAdds:[];
   if(d.day&&PROG()[d.day-1]) curDay=d.day;
   dirty=false;
   // 날짜가 다르면 조용히 넘기지 않는다 — 어제 것을 오늘로 저장하게 두면 안 된다
@@ -753,7 +841,7 @@ function renderOverview(){
     if(!sessionSaved && doneSets()>0 &&
        !confirm(`Day ${curDay} 에 저장하지 않은 기록 ${doneSets()}세트가 있습니다.\n지우고 Day ${b.dataset.d} 로 이동할까요?`)) return;
     curDay=+b.dataset.d; entries={}; swaps={}; blocks={};
-    sessionSaved=false; savedRec=null; clearDraft();
+    sessionSaved=false; savedRec=null; clearSession(); renderAddSheet(); clearDraft();
     renderOverview(); renderBrief(); renderBlocks(); render(); stopRest();
     $("saved").textContent=""; $("reset").style.display="none";
     $("coachbox").style.display="none";
@@ -799,7 +887,8 @@ function clearIfVisible(n){
   if(n!==curDay) return true;
   if(!sessionSaved && doneSets()>0 &&
      !confirm(`화면에 저장하지 않은 기록 ${doneSets()}세트가 있습니다.\n이 Day 의 프로그램을 고치면 입력이 지워집니다. 계속할까요?`)) return false;
-  entries={}; swaps={}; sessionSaved=false; savedRec=null; clearDraft(); stopRest();
+  entries={}; swaps={}; sessionSaved=false; savedRec=null;
+  clearSession(); renderAddSheet(); clearDraft(); stopRest();
   $("saved").textContent=""; $("reset").style.display="none"; $("coachbox").style.display="none";
   return true;
 }
@@ -855,7 +944,7 @@ async function edApply(){
   }else{
     // 6개만 묻고 나머지는 기본값이다 (SCHEMA 「편집 규칙」). alts 가 비면 대체 버튼은 감춘다
     day.ex.push({name,sets,reps,top:topOf(reps),rir:bw?"—":"2",rest,inc,
-      mode:bw?"맨몸":"kg", target:"직접 추가", kind:"보조", equip:bw?"맨몸":"머신",
+      mode:bw?"맨몸":"kg", target:"", kind:"보조", equip:bw?"맨몸":"머신",
       cue:"", alts:[]});
   }
   edForm=null; edNote=note;
@@ -1071,7 +1160,7 @@ function renderBlocks(){
     b.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
   });
 }
-const nameOf=i=>swaps[i]||D().ex[i].name;
+const nameOf=i=>swaps[i]||(todayEx()[i]||{}).name||"";
 /* 무게 0 은 "안 더함" 이다 — 머신은 기본 무게, 프리웨이트는 빈 봉, 맨몸은 자기 몸.
    숫자 0 을 그대로 보여주면 오해를 부르므로 「기본」으로 쓴다. */
 const wTxt=w=>w>0?w+"kg":"기본";
@@ -1083,13 +1172,25 @@ function lastText(l){
               : s.map(v=>`${wTxt(v.w)}×${v.r}`).join(", ");
 }
 const setsDone=i=>(entries[i]||[]).filter(x=>x&&x.done).length;
-function activeIdx(){ const ex=D().ex; for(let i=0;i<ex.length;i++) if(setsDone(i)<ex[i].sets) return i; return -1; }
+// 건너뛴 종목에서 멈추지 않는다 — 안 그러면 활성 테두리가 거기 붙어 영원히 안 넘어간다
+function activeIdx(){
+  const ex=todayEx();
+  for(let i=0;i<ex.length;i++) if(!sessionSkip[i]&&setsDone(i)<setsOf(i)) return i;
+  return -1;
+}
 
 function render(){
   const act=activeIdx();
-  $("list").innerHTML=D().ex.map((e,i)=>{
-    const {name:orig,sets,reps,top,rir,rest,target,cue,mode:wmode,kind,alts,inc,equip}=e;
+  $("list").innerHTML=todayEx().map((e,i)=>{
+    const {name:orig,reps,top,rir,rest,target,cue,mode:wmode,kind,alts,inc,equip}=e;
     const name=nameOf(i), bw=wmode==="맨몸";
+    /* 건너뛴 종목은 접는다. 사라지지는 않는다 — 같은 체크박스로 되돌린다 */
+    if(sessionSkip[i]) return `<div class="skipcard" id="ex-${i}">
+      <button class="skipbox" type="button" data-skip="${i}" aria-pressed="true"
+              aria-label="${esc(name)} 건너뛰기 해제"><span class="bx">✓</span>되돌리기</button>
+      <div><div class="sname">${esc(name)}</div>
+        <div class="snote">오늘 건너뜀 · 진행률에서 제외</div></div></div>`;
+    const sets=setsOf(i);                       // 오늘의 세트 수. e.sets 는 계획값이다
     /* 대체 종목 프리필 — 읽기 전용 규칙 (SCHEMA). 쓰기는 언제나 실제 수행 종목이다.
        ① 실제 종목 기록이 있으면 그것 ② 없으면 그 자리 원래 종목으로 폴백
        ③ 폴백이면 출처를 밝힌다 ④ 폴백으로는 증량 판정을 하지 않는다 */
@@ -1129,11 +1230,16 @@ function render(){
           value="${pr===undefined?"":pr}" data-i="${i}" data-s="${s}" data-f="r" aria-label="${esc(name)} ${s+1}세트 반복">
         <div class="chk" role="button" tabindex="0" aria-pressed="${!!v.done}" data-i="${i}" data-s="${s}" data-rest="${rest}" aria-label="${s+1}세트 완료">✓</div></div>`;
     }).join("");
-    return `<section class="ex ${setsDone(i)===sets?"done":""} ${i===act?"active":""}" id="ex-${i}">
-      <div class="tagline">${tag}<span class="tag acc">${target}</span></div>
+    const setsChanged = sessionSets[i]>0 && sessionSets[i]!==e.sets;
+    return `<section class="ex ${setsDone(i)>=sets?"done":""} ${i===act?"active":""}" id="ex-${i}">
+      <div class="tagline">${tag}${target?`<span class="tag acc">${esc(target)}</span>`:""}${isAdded(i)?`<span class="tag arm">오늘 추가</span>`:""}
+        <button class="skipbox" type="button" data-skip="${i}" aria-pressed="false"
+                aria-label="${esc(name)} 오늘 건너뛰기"><span class="bx">✓</span>건너뛰기</button>
+        <button class="gearbtn" type="button" data-gear="${i}" aria-expanded="${openSheet===i}"
+                aria-label="${esc(name)} 계획 고치기">⚙</button></div>
       <div class="exhead"><div>
         <div class="exname">${esc(name)}${swaps[i]?`<span class="swapped">대체 · 원래 ${esc(orig)}</span>`:""}</div>
-        <div class="extarget">${sets} × ${esc(reps)}회 · RIR ${rir} · 휴식 ${rest>=60?(rest/60)+"분":rest+"초"}</div>
+        <div class="extarget">${sets} × ${esc(reps)}회 · RIR ${rir} · 휴식 ${rest>=60?(rest/60)+"분":rest+"초"}${setsChanged?` <em>오늘만 ${e.sets}→${sets}</em>`:""}</div>
         <div class="cue">${cue}</div>
       </div><span class="idx">${String(i+1).padStart(2,"0")}</span></div>
       <div class="last">${!l?"지난 기록 없음 — 가볍게 시작"
@@ -1141,10 +1247,12 @@ function render(){
       ${up?`<span class="up">↑ 다음 중량 +${inc||2.5}kg</span>`:(own?`<span class="keep">지난 중량 유지 · 반복 수를 늘려보세요</span>`:"")}
       <div class="setlabels"><span></span><span>${bw?"맨몸":wmode}${l?" · 제안":""}</span><span>반복</span><span>완료</span></div>
       <div class="sets">${rows}</div>
-      ${swaps[i]?`<button class="revert" data-rev="${i}">원래 종목으로 되돌리기</button>`
-                /* 직접 추가한 종목은 alts 가 비어 있다. 버튼을 두면 눌러도 아무것도 안 나온다 */
-                :((alts||[]).length?`<button class="swapbtn" data-i="${i}">기구가 차 있어요 — 대체 종목</button>`:"")}
-      <div class="alts" id="alts-${i}"></div>
+      <div class="setctl">
+        <button class="addset" type="button" data-addset="${i}">+ 세트 추가</button>
+        <button class="delset" type="button" data-delset="${i}" aria-label="세트 빼기"
+                ${sets<=1||setsDone(i)>=sets?"disabled":""}>−</button>
+      </div>
+      ${openSheet===i?sheetHTML(i):""}
     </section>`;
   }).join("");
   bind(); updateProgress();
@@ -1179,7 +1287,7 @@ function bind(){
         if(inp.value!==""&&!inp.disabled) entries[i][s][inp.dataset.f]=+inp.value; });
       const on=!entries[i][s].done; entries[i][s].done=on;
       saveDraft(); keepAwake(); armAudio();
-      const fin=on&&setsDone(i)===D().ex[i].sets;
+      const fin=on&&setsDone(i)>=setsOf(i);
       if(on) startRest(rest,nameOf(i),i,s); else stopRest();
       render();
       if(fin){ const nx=$("ex-"+(i+1)); if(nx) setTimeout(()=>nx.scrollIntoView({behavior:"smooth",block:"start"}),260); }
@@ -1187,31 +1295,201 @@ function bind(){
     btn.addEventListener("click",go);
     btn.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
   });
-  $("list").querySelectorAll(".swapbtn").forEach(b=>b.addEventListener("click",()=>showAlts(+b.dataset.i)));
-  $("list").querySelectorAll(".revert").forEach(b=>b.addEventListener("click",()=>{ delete swaps[b.dataset.rev]; saveDraft(); render(); }));
+  bindQuick();
 }
 
-function altCard(name,why){
-  return `<div class="alt" role="button" tabindex="0" data-name="${String(name).replace(/"/g,"")}">
-    <div class="an">${name}</div><div class="aw">${why}</div></div>`;
-}
-// 「다른 대안 더 찾기」(AI 호출)는 제거했다 — SPEC 4-3.
-// 종목당 대체 2개가 프로그램의 alts 에 이미 들어 있고, 오프라인에서도 동작해야 한다.
-function showAlts(i){
-  const box=$("alts-"+i), local=D().ex[i].alts||[];
-  box.innerHTML=local.map(a=>altCard(a[0],a[1])).join("");
-  bindAlts(i);
-}
-function bindAlts(i){
-  $("alts-"+i).querySelectorAll(".alt").forEach(el=>{
-    const pick=()=>{ swaps[i]=el.dataset.name; saveDraft(); render(); };
-    el.addEventListener("click",pick);
-    el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pick();}});
+/* ── 퀵수정 조작 ── */
+function bindQuick(){
+  const L=$("list"), on=(sel,fn,ev)=>L.querySelectorAll(sel).forEach(el=>el.addEventListener(ev||"click",fn));
+
+  // 카드 = 오늘만
+  on("[data-skip]",e=>{
+    const i=+e.currentTarget.dataset.skip;
+    if(sessionSkip[i]) delete sessionSkip[i]; else sessionSkip[i]=true;
+    if(sessionSkip[i]&&openSheet===i) openSheet=-1;
+    saveDraft(); stopRest(); render();
   });
+  on("[data-addset]",e=>{
+    const i=+e.currentTarget.dataset.addset, n=setsOf(i);
+    if(n>=12) return;                        // 한 종목 12세트는 오입력이다
+    sessionSets[i]=n+1; saveDraft(); render();
+  });
+  on("[data-delset]",e=>{
+    const i=+e.currentTarget.dataset.delset, n=setsOf(i)-1;
+    if(n<1||n<setsDone(i)) return;           // 이미 기록한 세트는 지우지 않는다
+    sessionSets[i]=n;
+    if(entries[i]) entries[i]=entries[i].slice(0,n);
+    saveDraft(); render();
+  });
+  on("[data-gear]",e=>{
+    const i=+e.currentTarget.dataset.gear;
+    openSheet = openSheet===i ? -1 : i;
+    if(openSheet===i) sheetBase=D().ex.reduce((a,x)=>a+x.sets,0);   // 세트 수 변화의 기준선
+    render();
+    if(openSheet===i){ const el=$("ex-"+i); if(el) setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"nearest"}),60); }
+  });
+  on("[data-close]",e=>{ openSheet=-1; render(); });
+
+  // 시트 · 오늘만 구역
+  on("[data-alt]",e=>{ const t=e.currentTarget;
+    swaps[+t.dataset.alt]=t.dataset.name; openSheet=-1; saveDraft(); render(); });
+  on("[data-revert]",e=>{ delete swaps[e.currentTarget.dataset.revert]; saveDraft(); render(); });
+
+  // 시트 · 프로그램 구역 — 고치는 즉시 wk:program 에 쓴다
+  on("[data-psets]",async e=>{
+    const t=e.currentTarget, i=+t.dataset.psets, ex=todayEx()[i], n=ex.sets+(+t.dataset.d);
+    if(n<1||n>10) return;
+    if(n<setsDone(i)&&!sessionSets[i]){ $("qerr-"+i).textContent="이미 기록한 세트보다 적게 줄일 수 없습니다."; return; }
+    ex.sets=n;
+    delete sessionSets[i];                   // 계획이 바뀌었으니 오늘만 값은 물러난다
+    await sheetSaved();
+  });
+  on("[data-reps]",async e=>{
+    const t=e.currentTarget, i=+t.dataset.reps, ex=todayEx()[i], box=$("qerr-"+i);
+    const inputs=t.closest(".qtwo").querySelectorAll("input");
+    const lo=+inputs[0].value, hi=+inputs[1].value;
+    if(!(lo>=1&&lo<=100&&hi>=1&&hi<=100)){ if(box) box.textContent="반복 수는 1~100 사이여야 합니다."; return; }
+    if(hi<lo){ if(box) box.textContent="반복 범위의 오른쪽이 왼쪽보다 작습니다."; return; }
+    ex.reps=(lo===hi)?String(lo):`${lo}-${hi}`; ex.top=topOf(ex.reps);
+    await sheetSaved();
+  },"change");
+  on("[data-qrest]",async e=>{ const t=e.currentTarget;
+    todayEx()[+t.dataset.qrest].rest=+t.dataset.v; await sheetSaved(); });
+  on("[data-qinc]",async e=>{ const t=e.currentTarget;
+    todayEx()[+t.dataset.qinc].inc=+t.dataset.v; await sheetSaved(); });
 }
 
-const totalSets=()=>D().ex.reduce((a,e)=>a+e.sets,0);
-const doneSets=()=>D().ex.reduce((a,e,i)=>a+setsDone(i),0);
+/* ── 오늘 종목 추가 ──
+   대개는 이미 아는 종목이다. 고르면 키보드가 안 뜨고 지난 중량까지 따라온다. */
+function addCandidates(){
+  const here=new Set(todayEx().map(x=>x.name)), seen=new Set(), out=[];
+  PROG().forEach(d=>{ if(d.n===curDay) return;
+    d.ex.forEach(x=>{ if(here.has(x.name)||seen.has(x.name)) return;
+      seen.add(x.name); out.push({name:x.name, src:`Day ${d.n}`, ex:x}); }); });
+  Object.keys(idx.lastByExercise).forEach(n=>{
+    if(here.has(n)||seen.has(n)) return;
+    seen.add(n); out.push({name:n, src:"지난 기록", ex:null}); });
+  return out;
+}
+function renderAddSheet(){
+  const box=$("addsheet");
+  if(openSheet!==-2){ box.innerHTML=""; return; }
+  const c=addCandidates().slice(0,14);
+  box.innerHTML=`<div class="qsheet">
+    <label class="qswitch"><input type="checkbox" id="addtoprog">
+      이 Day 프로그램에도 넣기 — 세션을 저장할 때 반영됩니다</label>
+    <div class="qz today">골라서 바로 추가</div>
+    ${c.length?`<div class="qchips" style="flex-direction:column">${c.map((x,k)=>{
+        const l=idx.lastByExercise[x.name];
+        return `<button class="pickchip" type="button" data-pick="${k}">${esc(x.name)}
+          <span class="src">${esc(x.src)}${l?" · 지난 "+esc(lastText(l)):""}</span></button>`;
+      }).join("")}</div>`
+      :`<div class="bakhint">고를 만한 종목이 없습니다. 아래에 직접 입력해주세요.</div>`}
+    <div class="qz prog">직접 입력</div>
+    <input type="text" class="qname" id="addname" maxlength="40" placeholder="예) 케이블 풀오버">
+    <div class="qerr" id="adderr"></div>
+    <button class="qdone" type="button" id="addok">오늘 목록에 추가</button>
+    <button class="coachbtn" type="button" id="addcancel" style="margin-top:8px">닫기</button>
+  </div>`;
+  const toProg=()=>$("addtoprog").checked;
+  box.querySelectorAll("[data-pick]").forEach(b=>b.addEventListener("click",()=>{
+    const x=c[+b.dataset.pick];
+    const err=addToday(x.name, x.ex, toProg());
+    if(err){ $("adderr").textContent=err; return; }
+    openSheet=-1; saveDraft(); renderAddSheet(); render();
+  }));
+  $("addok").addEventListener("click",()=>{
+    const err=addToday($("addname").value, null, toProg());
+    if(err){ $("adderr").textContent=err; return; }
+    openSheet=-1; saveDraft(); renderAddSheet(); render();
+  });
+  $("addcancel").addEventListener("click",()=>{ openSheet=-1; renderAddSheet(); });
+}
+function addToday(name,srcEx,toProg){
+  name=(name||"").trim();
+  if(!name) return "이름을 입력하세요.";
+  if(todayEx().some(x=>x.name===name)) return "오늘 목록에 이미 있는 종목입니다.";
+  const base = srcEx ? JSON.parse(JSON.stringify(srcEx))
+    // target 은 비워둔다 — 모르는 값을 지어내면 「오늘 추가」 태그와 글자가 겹쳐 두 번 뜬다
+    : {name, sets:3, reps:"8-12", top:12, rir:"2", rest:90, inc:5, mode:"kg",
+       target:"", kind:"보조", equip:"머신", cue:"", alts:[]};
+  base.name=name;
+  if(toProg) base.toProgram=true;   // 저장 시점에 D().ex 로 옮긴다 (아래 promoteAdds)
+  sessionAdds.push(base);
+  return "";
+}
+$("addex").addEventListener("click",()=>{
+  openSheet = openSheet===-2 ? -1 : -2;
+  renderAddSheet(); render();
+  if(openSheet===-2) setTimeout(()=>$("addsheet").scrollIntoView({behavior:"smooth",block:"nearest"}),60);
+});
+/* 「이 Day 프로그램에도 넣기」는 저장 시점에 반영한다.
+   세션 중에 D().ex 에 밀어 넣으면 todayEx() 의 뒷부분 순서가 바뀌어
+   이미 입력한 값이 옆 종목으로 옮겨 붙는다. 저장 뒤에 옮기고 인덱스를 다시 매핑한다. */
+async function promoteAdds(){
+  const promo=sessionAdds.filter(x=>x.toProgram);
+  if(!promo.length) return;
+  const oldList=todayEx().slice();
+  promo.forEach(x=>{ delete x.toProgram; D().ex.push(x); });   // 같은 객체를 밀어넣어야 매핑이 된다
+  sessionAdds=sessionAdds.filter(x=>promo.indexOf(x)<0);
+  const newList=todayEx();
+  const ne={}, nsw={}, nss={}, nsk={};
+  oldList.forEach((o,oi)=>{
+    const ni=newList.indexOf(o); if(ni<0) return;
+    if(entries[oi]!==undefined) ne[ni]=entries[oi];
+    if(swaps[oi]!==undefined) nsw[ni]=swaps[oi];
+    if(sessionSets[oi]!==undefined) nss[ni]=sessionSets[oi];
+    if(sessionSkip[oi]!==undefined) nsk[ni]=sessionSkip[oi];
+  });
+  entries=ne; swaps=nsw; sessionSets=nss; sessionSkip=nsk;
+  await saveProgram();
+}
+
+/* ── ⚙ 시트 — 여기서 고치는 것은 전부 계획(wk:program)이다 ──
+   카드에서 하는 것은 오늘만, 시트에서 하는 것은 계속. 자리가 곧 범위라서
+   「다음부터도 적용」 체크박스가 없다. 확인할 상태가 없는 편이 세트 사이에 맞다.
+   대체 종목만은 오늘만이므로 시트 안에서도 구역을 갈라 둔다.
+   휴식·증량은 스테퍼가 아니라 칩이다 — 실제로 쓰는 값이 몇 개뿐인데
+   스테퍼면 2.5 에서 5 로 가는 데 다섯 번을 눌러야 한다. */
+const RESTS=[45,60,90,120,150,180], INCS=[0,1,2.5,5,10];
+function sheetHTML(i){
+  const e=todayEx()[i], alts=e.alts||[];
+  let h=`<div class="qsheet"><div class="qz today">오늘만</div>`;
+  if(swaps[i]) h+=`<button class="qact plain" type="button" data-revert="${i}">원래 종목으로 되돌리기<span class="aw">${esc(e.name)}</span></button>`;
+  if(alts.length) h+=alts.map(a=>`<button class="qact" type="button" data-alt="${i}" data-name="${esc(a[0])}">${esc(a[0])}<span class="aw">${esc(a[1])}</span></button>`).join("");
+  else if(!swaps[i]) h+=`<div class="bakhint">등록된 대체 종목이 없습니다.</div>`;
+  if(isAdded(i)){
+    h+=`<div class="qz prog">프로그램</div>
+      <div class="bakhint">오늘 추가한 종목이라 아직 계획에 없습니다.
+        「이 Day 프로그램에도 넣기」를 켜고 추가했다면 세션을 저장할 때 들어갑니다.</div>`;
+  }else{
+    const tot=D().ex.reduce((a,x)=>a+x.sets,0);
+    const rr=repsRange(e.reps);
+    h+=`<div class="qz prog">프로그램 · 다음부터 계속</div>
+    <div class="qrow"><div class="ql">계획 세트<i>Day ${curDay} · ${sheetBase}세트${tot!==sheetBase?` → ${tot}세트`:""}</i></div>
+      <div class="qgrp">
+        <button class="qbtn" type="button" data-psets="${i}" data-d="-1" ${e.sets<=1?"disabled":""}>−</button>
+        <span class="qval">${e.sets}</span>
+        <button class="qbtn" type="button" data-psets="${i}" data-d="1" ${e.sets>=10?"disabled":""}>+</button></div></div>
+    <div class="qrow"><div class="ql">반복 범위</div>
+      <div class="qtwo">
+        <input type="number" inputmode="numeric" min="1" max="100" value="${rr[0]}" data-reps="${i}" data-k="lo" aria-label="반복 하한">
+        <span>~</span>
+        <input type="number" inputmode="numeric" min="1" max="100" value="${rr[1]}" data-reps="${i}" data-k="hi" aria-label="반복 상한"></div></div>
+    <div class="qrow"><div class="ql">휴식 · 초</div></div>
+    <div class="qchips">${RESTS.map(v=>`<button class="qchip" type="button" data-qrest="${i}" data-v="${v}" aria-pressed="${e.rest===v}">${v}</button>`).join("")}</div>
+    <div class="qrow" style="margin-top:11px"><div class="ql">증량 단위 · kg</div></div>
+    <div class="qchips">${INCS.map(v=>`<button class="qchip" type="button" data-qinc="${i}" data-v="${v}" aria-pressed="${e.inc===v}" ${e.mode==="맨몸"?"disabled":""}>${v}</button>`).join("")}</div>
+    <div class="qerr" id="qerr-${i}"></div>`;
+  }
+  return h+`<button class="qdone" type="button" data-close="${i}">완료</button></div>`;
+}
+// 시트에서 프로그램을 고친 뒤 — 총정리·브리핑·5단계 편집기의 세트 수까지 따라가야 한다
+async function sheetSaved(){ await saveProgram(); renderOverview(); renderBrief(); render(); renderEditor(); }
+
+/* 건너뛴 종목은 분모에서 뺀다. 안 그러면 다 하고도 진행률이 100% 에 닿지 못한다 */
+const totalSets=()=>todayEx().reduce((a,e,i)=>a+(sessionSkip[i]?0:setsOf(i)),0);
+const doneSets=()=>todayEx().reduce((a,e,i)=>a+(sessionSkip[i]?0:setsDone(i)),0);
 function updateProgress(){
   const d=doneSets(),t=totalSets();
   $("bar").style.width=(t?d/t*100:0)+"%";
@@ -1229,9 +1507,9 @@ let timer=null, endAt=0, span=0;
 const leftSec=()=>Math.round((endAt-Date.now())/1000);
 function startRest(sec,name,i,s){
   span=sec; endAt=Date.now()+sec*1000;
-  const isLast=s+1>=D().ex[i].sets;
+  const isLast=s+1>=setsOf(i);
   $("restname").textContent=name;
-  $("restnext").textContent=isLast?(D().ex[i+1]?"다음 → "+nameOf(i+1):"마지막 종목"):`${s+2}세트 준비`;
+  $("restnext").textContent=isLast?(todayEx()[i+1]?"다음 → "+nameOf(i+1):"마지막 종목"):`${s+2}세트 준비`;
   $("rest").classList.add("on");
   clearInterval(timer); tick(); timer=setInterval(tick,1000);
 }
@@ -1263,12 +1541,15 @@ $("finish").addEventListener("click",async()=>{
   // 시각은 어디에도 남기지 않는다 — id 는 날짜 + 4자리 무작위 (SCHEMA)
   const rec={id: again?savedRec.id:newId("w",date), date, day, title:D().title,
              exercises:[], rev: again?(savedRec.rev+1):1};
-  D().ex.forEach((e,i)=>{
+  todayEx().forEach((e,i)=>{
+    if(sessionSkip[i]) return;           // 안 한 것은 기록이 아니다
     const name=nameOf(i);
     const arr=(entries[i]||[]).filter(x=>x&&x.done&&x.r);
     if(!arr.length) return;
     rec.exercises.push({
-      name, planned:e.name,              // 대체했으면 원래 종목이 planned 에 남는다
+      name,
+      // 대체했으면 원래 종목이 planned 에 남는다. 오늘 추가한 종목은 계획에 없었으므로 null
+      planned: isAdded(i)?null:e.name,
       targetReps:e.reps, targetRir:e.rir,
       rir:null,                          // RIR 칩은 4단계
       sets:arr.map(x=>({w:x.w||0,r:x.r}))
@@ -1280,7 +1561,11 @@ $("finish").addEventListener("click",async()=>{
       w:arr[arr.length-1].w||0, reps:arr.map(x=>x.r),
       sets:arr.map(x=>({w:x.w||0,r:x.r})),
       mode:e.mode, rir:null,
-      allTop:arr.length===e.sets&&arr.every(x=>x.r>=e.top), date};
+      /* ⚠ === 가 아니라 >= 다. 계획 3세트인데 오늘 4세트를 하면 === 에서는 거짓이 되어
+         네 세트 전부 목표 상단을 채워도 증량 제안이 사라진다. 더 했는데 벌을 받는 셈이다.
+         >= 면 줄였을 때는 여전히 거짓이라 "계획만큼 채워야 증량"이라는 원래 의도는 지켜진다.
+         비교 대상은 언제나 계획 세트 수(e.sets)다 — 오늘 줄인 값이 아니다. */
+      allTop:arr.length>=e.sets&&arr.every(x=>x.r>=e.top), date};
   });
 
   const mo=getMonth(m);
@@ -1303,6 +1588,7 @@ $("finish").addEventListener("click",async()=>{
        화면을 비우는 것은 「초기화」 버튼이 맡는다. 실패했을 때는 아무것도 건드리지 않는다. */
     sessionSaved=true; savedRec={id:rec.id,date,day,rev:rec.rev};
     clearDraft();
+    await promoteAdds();               // 「이 Day 프로그램에도 넣기」를 켠 종목을 여기서 계획으로 옮긴다
     $("saved").textContent=`저장됨 · ${date} Day ${day} · ${nSets}세트 — 다음은 Day ${nextDay()}`;
     $("saved").className="saved";
     $("reset").style.display="block";
@@ -1311,7 +1597,7 @@ $("finish").addEventListener("click",async()=>{
   }
   showCoach(rec);
   setTimeout(()=>$("coachbox").scrollIntoView({behavior:"smooth",block:"start"}),200);
-  stopRest(); renderOverview(); renderBrief(); renderBlocks(); render();
+  stopRest(); renderOverview(); renderBrief(); renderBlocks(); render(); renderEditor();
 });
 
 /* 「초기화」 — 저장한 세션을 화면에서 지우고 다음 Day 로 넘어간다.
@@ -1319,6 +1605,7 @@ $("finish").addEventListener("click",async()=>{
 $("reset").addEventListener("click",()=>{
   if(!sessionSaved && doneSets()>0 && !confirm("아직 저장하지 않은 기록이 있습니다. 지우고 초기화할까요?")) return;
   entries={}; swaps={}; blocks={}; sessionSaved=false; savedRec=null;
+  clearSession(); renderAddSheet();
   clearDraft();
   curDay=nextDay();
   $("saved").textContent=""; $("reset").style.display="none";
@@ -1445,9 +1732,15 @@ $("exportbtn").addEventListener("click",showBackup);
 function coachText(rec){
   const d=PROG()[rec.day-1]||D();
   const goal=(rec.exercises||[]).map(x=>{
-    const e=d.ex.find(z=>z.name===x.planned)||d.ex.find(z=>z.name===x.name);
-    return e?`${x.name}: 목표 ${e.sets}x${e.reps} RIR ${e.rir} (증량단위 ${e.inc}kg)`:null;
-  }).filter(Boolean);
+    // 오늘 추가한 종목은 계획에 없다 (planned:null). sessionAdds 에서 찾고 그렇게 표시한다
+    const e=d.ex.find(z=>z.name===x.planned)||d.ex.find(z=>z.name===x.name)
+          ||sessionAdds.find(z=>z.name===x.name);
+    if(!e) return `${x.name}: 계획 외 종목`;
+    return `${x.name}: 목표 ${e.sets}x${e.reps} RIR ${e.rir} (증량단위 ${e.inc}kg)`
+         + (x.planned===null?" · 오늘 추가한 종목":"");
+  });
+  // 건너뛴 종목도 코칭 재료다 — 볼륨이 왜 줄었는지 알아야 조언이 맞는다
+  const skipped=todayEx().map((e,i)=>sessionSkip[i]?nameOf(i):null).filter(Boolean);
   // 같은 Day 직전 2회 — 오늘 것은 뺀다
   const prev=allSessions().filter(s=>s.day===rec.day&&s.id!==rec.id).slice(0,2);
   const L=[
@@ -1458,6 +1751,7 @@ function coachText(rec){
     ``,
     `[오늘 Day의 목표]`,
     ...(goal.length?goal:["(없음)"]),
+    ...(skipped.length?[`오늘 건너뛴 종목: ${skipped.join(", ")}`]:[]),
     ``,
     `[같은 Day 이전 기록]`,
     ...(prev.length?prev.flatMap(s=>sessionLines(s)):["이전 기록 없음"]),
