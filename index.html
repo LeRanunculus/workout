@@ -223,6 +223,20 @@ button.prev .more{color:var(--brass);margin-left:6px}
   font-size:12.5px;color:var(--dim);line-height:1.4;margin-top:6px}
 .qswitch input{width:21px;height:21px;accent-color:var(--brass);flex-shrink:0}
 
+/* RIR 칩 (4-1) — 세트마다 묻지 않는다. 한 종목을 마치면 한 번, 종목당 1탭 */
+.rirlab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--faint);font-weight:700;margin-top:13px}
+.rir{display:flex;gap:6px;margin-top:7px}
+.rirchip{flex:1;min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);
+  color:var(--dim);font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;padding:0 4px}
+.rirchip[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#2B2836}
+.rirchip:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+.notewrap{margin-bottom:12px}
+.notewrap input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+  color:var(--chalk);font-family:var(--sans);font-size:15px;padding:14px;min-height:50px}
+.notewrap input:focus{outline:none;border-color:var(--brass)}
+.notewrap input::placeholder{color:var(--faint)}
+
 .sets{margin-top:13px;display:flex;flex-direction:column;gap:8px}
 .set,.setlabels{display:grid;grid-template-columns:26px 1fr 1fr 62px;gap:8px;align-items:center}
 .setlabels span{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);text-align:center;font-weight:700}
@@ -368,6 +382,8 @@ button.prev .more{color:var(--brass);margin-left:6px}
   <button class="addex" id="addex">+ 오늘 종목 추가</button>
   <div id="addsheet"></div>
   <section class="block" id="finisher"></section>
+  <div class="notewrap"><input type="text" id="note" maxlength="60"
+       placeholder="한 줄 메모 (선택) — 어깨 뻐근 · 잠 못 잠" aria-label="세션 메모"></div>
   <button class="finish" id="finish" disabled>세션 저장</button>
   <div class="saved" id="saved"></div>
   <button class="resetbtn" id="reset" style="display:none">초기화하고 다음 Day 로</button>
@@ -632,6 +648,11 @@ let sessionSaved=false, savedRec=null;
    sessionAdds 는 언제나 목록 맨 뒤에 붙는다 — entries·swaps 가 인덱스 키라
    중간에 끼워 넣으면 이미 입력한 값이 옆 종목으로 밀린다. */
 let sessionSets={}, sessionSkip={}, sessionAdds=[], openSheet=-1, sheetBase=0;
+/* 4-1 RIR · 4-2 노트와 소요 시간.
+   startMark 는 첫 세트를 완료한 시각(epoch)이고 드래프트에만 산다.
+   wk:draft 는 SCHEMA 가 「동기화 대상 아님」으로 못박은 키이고 저장하면 지워진다 —
+   폰 밖으로 나가는 기록에는 durationSec 만 남는다 (SCHEMA 「시각을 저장하지 않는다」). */
+let rirs={}, note="", startMark=null;
 const PROG=()=>program.days;
 const D=()=>PROG()[curDay-1];
 /* 오늘 실제로 화면에 뜨는 종목 목록. 계획 + 오늘 추가분.
@@ -640,7 +661,11 @@ const todayEx=()=>sessionAdds.length?D().ex.concat(sessionAdds):D().ex;
 const isAdded=i=>i>=D().ex.length;
 // 오늘의 세트 수. 계획값을 덮어쓰지 않고 얹는다
 const setsOf=i=>{ const v=sessionSets[i]; return v>0?v:(todayEx()[i]||{}).sets||0; };
-function clearSession(){ sessionSets={}; sessionSkip={}; sessionAdds=[]; openSheet=-1; pickMode=null; }
+function clearSession(){
+  sessionSets={}; sessionSkip={}; sessionAdds=[]; openSheet=-1; pickMode=null;
+  rirs={}; note=""; startMark=null;
+  const n=$("note"); if(n) n.value="";
+}
 /* ── 대체 종목 기억 (SPEC 4-8) ──
    기록의 키는 실제 수행 종목이다. 그래서 바벨 백스쿼트 자리에서 고블릿 스쿼트를 하면
    기록은 「고블릿 스쿼트」에 남는데, 다음에 그 Day 를 열면 화면은 바벨 백스쿼트를 보여주며
@@ -781,7 +806,7 @@ async function load(){
    localStorage 는 호출 비용이 없다. "저장 버튼을 눌러야만 저장"에서 되돌린다. */
 let saveTimer=null;
 function draftBody(){ return {schema:SCHEMA_VER, date:today(), day:curDay, entries, swaps, blocks,
-                              sessionSets, sessionSkip, sessionAdds}; }
+                              sessionSets, sessionSkip, sessionAdds, rirs, note, startMark}; }
 /* "진행 중인 세션"의 근거는 실제로 기록한 것뿐이다 — 세트 입력·완료, 웜업/마무리 체크.
    대체 종목만 골라둔 상태는 세션이 아니다. 그것까지 세면 Day 를 둘러보다 대체를 한 번
    눌러본 것만으로 드래프트가 남아 다음 실행 때 rotation 의 Day 를 가로챈다.
@@ -815,6 +840,8 @@ function restoreDraft(){
   entries=d.entries||{}; swaps=d.swaps||{}; blocks=d.blocks||{};
   sessionSets=d.sessionSets||{}; sessionSkip=d.sessionSkip||{};
   sessionAdds=Array.isArray(d.sessionAdds)?d.sessionAdds:[];
+  rirs=d.rirs||{}; note=d.note||""; startMark=d.startMark||null;
+  const ni=$("note"); if(ni) ni.value=note;
   if(d.day&&PROG()[d.day-1]) curDay=d.day;
   dirty=false;
   // 날짜가 다르면 조용히 넘기지 않는다 — 어제 것을 오늘로 저장하게 두면 안 된다
@@ -1291,7 +1318,7 @@ function render(){
         <div class="cue">${cue}</div>
       </div><span class="idx">${String(i+1).padStart(2,"0")}</span></div>
       <div class="last">${!l?"지난 기록 없음 — 가볍게 시작"
-        :`지난 기록 · ${fallback?esc(orig)+" ":""}${lastText(l)}${fallback?' <b class="fb">(다른 종목)</b>':""}`}</div>
+        :`지난 기록 · ${fallback?esc(orig)+" ":""}${lastText(l)}${l.rir&&RIRTXT[l.rir]?" · "+RIRTXT[l.rir]:""}${fallback?' <b class="fb">(다른 종목)</b>':""}`}</div>
       ${up?`<span class="up">↑ 다음 중량 +${inc||2.5}kg</span>`:(own?`<span class="keep">지난 중량 유지 · 반복 수를 늘려보세요</span>`:"")}
       <div class="setlabels"><span></span><span>${bw?"맨몸":wmode}${l?" · 제안":""}</span><span>반복</span><span>완료</span></div>
       <div class="sets">${rows}</div>
@@ -1300,6 +1327,10 @@ function render(){
         <button class="delset" type="button" data-delset="${i}" aria-label="세트 빼기"
                 ${sets<=1||setsDone(i)>=sets?"disabled":""}>−</button>
       </div>
+      ${/* 4-1 — 세트를 다 마쳤을 때만 뜬다. 세트마다 물으면 21탭이지만 이러면 6~7탭이다 */
+        setsDone(i)>=sets&&sets>0?`<div class="rirlab">마지막 세트 느낌 · 선택</div><div class="rir">${
+        Object.keys(RIRTXT).map(k=>`<button class="rirchip" type="button" data-rir="${i}" data-v="${k}"
+          aria-pressed="${rirs[i]===k}">${RIRTXT[k]}</button>`).join("")}</div>`:""}
       ${openSheet===i?sheetHTML(i):""}
     </section>`;
   }).join("");
@@ -1334,6 +1365,8 @@ function bind(){
       setEl.querySelectorAll("input").forEach(inp=>{
         if(inp.value!==""&&!inp.disabled) entries[i][s][inp.dataset.f]=+inp.value; });
       const on=!entries[i][s].done; entries[i][s].done=on;
+      // 소요 시간의 기준점 — 첫 세트 완료부터 저장까지다 (SPEC 4-2)
+      if(on&&!startMark) startMark=Date.now();
       saveDraft(); keepAwake(); armAudio();
       const fin=on&&setsDone(i)>=setsOf(i);
       if(on) startRest(rest,nameOf(i),i,s); else stopRest();
@@ -1356,6 +1389,12 @@ function bindQuick(){
     if(sessionSkip[i]) delete sessionSkip[i]; else sessionSkip[i]=true;
     if(sessionSkip[i]&&openSheet===i) openSheet=-1;
     saveDraft(); stopRest(); render();
+  });
+  // 같은 칩을 다시 누르면 해제된다. 잘못 눌렀을 때 되돌릴 길이 있어야 한다
+  on("[data-rir]",e=>{
+    const t=e.currentTarget, i=+t.dataset.rir, v=t.dataset.v;
+    if(rirs[i]===v) delete rirs[i]; else rirs[i]=v;
+    saveDraft(); render();
   });
   on("[data-addset]",e=>{
     const i=+e.currentTarget.dataset.addset, n=setsOf(i);
@@ -1483,6 +1522,7 @@ function addToday(name,srcEx,toProg){
   sessionAdds.push(base);
   return "";
 }
+$("note").addEventListener("input",e=>{ note=e.target.value; saveDraft(); });
 $("addex").addEventListener("click",()=>{
   openSheet = openSheet===-2 ? -1 : -2;
   renderAddSheet(); render();
@@ -1650,8 +1690,19 @@ $("finish").addEventListener("click",async()=>{
      id 를 매번 새로 뽑으면 중복 제거가 죽은 코드가 되어, 저장 실패 후 재시도할 때마다
      같은 날짜의 세션이 쌓이고 counts 와 rotation.cycles 까지 두 번씩 오른다. */
   const again = savedRec && savedRec.date===date && savedRec.day===day;
-  // 시각은 어디에도 남기지 않는다 — id 는 날짜 + 4자리 무작위 (SCHEMA)
-  const rec={id: again?savedRec.id:newId("w",date), date, day, title:D().title,
+  /* 웜업·마무리는 이미 blocks 로 받고 있었는데 저장 때 버려지고 있었다 (SPEC 4-2).
+     SCHEMA 예시는 Day 1 기준의 고정 키(foamRoll 등)인데, 프로그램이 편집 가능하므로
+     그 키를 보장할 수 없다. 실제로 체크한 항목 이름과 분을 담는다. */
+  const d0=D();
+  const wOn=Object.keys(blocks.w||{}).filter(k=>blocks.w[k]).map(Number);
+  const fOn=!!(blocks.f&&blocks.f[0]);
+  // 시각은 어디에도 남기지 않는다 — id 는 날짜 + 4자리 무작위, 시간은 durationSec 하나 (SCHEMA)
+  const rec={id: again?savedRec.id:newId("w",date), date,
+             durationSec: startMark?Math.max(0,Math.round((Date.now()-startMark)/1000)):null,
+             day, title:d0.title, note:(note||"").trim(),
+             warmup:{done:wOn.map(k=>(d0.warmup[k]||[])[0]).filter(Boolean),
+                     min:Math.round(wOn.reduce((a,k)=>a+((d0.warmup[k]||[])[2]||0),0)/60)},
+             finisher: fOn?{name:d0.finish.name, min:Math.round(d0.finish.sec/60)}:null,
              exercises:[], rev: again?(savedRec.rev+1):1};
   todayEx().forEach((e,i)=>{
     if(sessionSkip[i]) return;           // 안 한 것은 기록이 아니다
@@ -1663,7 +1714,7 @@ $("finish").addEventListener("click",async()=>{
       // 대체했으면 원래 종목이 planned 에 남는다. 오늘 추가한 종목은 계획에 없었으므로 null
       planned: isAdded(i)?null:e.name,
       targetReps:e.reps, targetRir:e.rir,
-      rir:null,                          // RIR 칩은 4단계
+      rir:rirs[i]||null,                 // 4-1 · 안 고르면 null 로 두고 넘어간다
       sets:arr.map(x=>({w:x.w||0,r:x.r}))
     });
     /* 쓰기는 언제나 실제 수행 종목 키다. 폴백을 만들다 원래 종목을 덮어쓰면 안 된다.
@@ -1672,7 +1723,7 @@ $("finish").addEventListener("click",async()=>{
     idx.lastByExercise[name]={
       w:arr[arr.length-1].w||0, reps:arr.map(x=>x.r),
       sets:arr.map(x=>({w:x.w||0,r:x.r})),
-      mode:e.mode, rir:null,
+      mode:e.mode, rir:rirs[i]||null,
       /* ⚠ === 가 아니라 >= 다. 계획 3세트인데 오늘 4세트를 하면 === 에서는 거짓이 되어
          네 세트 전부 목표 상단을 채워도 증량 제안이 사라진다. 더 했는데 벌을 받는 셈이다.
          >= 면 줄였을 때는 여전히 거짓이라 "계획만큼 채워야 증량"이라는 원래 의도는 지켜진다.
@@ -1751,8 +1802,12 @@ function weekNo(){
   const d=Math.floor((new Date(today())-new Date(s))/86400000);
   return d>=0 ? Math.floor(d/7)+1 : null;
 }
+/* ⚠ 파서는 `종목명: NNkg x NN` 한 줄 문법만 안다 (SCHEMA 「파싱 규칙」).
+   여기 덧붙이는 줄들은 `kg x` 패턴이 없어 자동으로 건너뛰어진다. 헤더 뒤에 붙는 것도
+   정규식이 날짜와 Day 만 잡으므로 안전하다. 이 성질을 깨뜨리지 말 것. */
 function sessionLines(s){
-  const out=[`[${s.date}] Day ${s.day} · ${s.title||""}`.trimEnd()];
+  const dur=s.durationSec>=60?` · ${Math.round(s.durationSec/60)}분`:"";   // 1분 미만은 노이즈다
+  const out=[`[${s.date}] Day ${s.day} · ${s.title||""}${dur}`.replace(/ · $/,"")];
   (s.exercises||[]).forEach(x=>{
     const tail=[];
     if(x.rir&&RIRTXT[x.rir]) tail.push(RIRTXT[x.rir]);
@@ -1760,6 +1815,10 @@ function sessionLines(s){
     out.push(`${x.name}: ${(x.sets||[]).map(v=>`${v.w||0}kg x ${v.r}`).join(", ")}`
              + (tail.length?` · ${tail.join(" · ")}`:""));
   });
+  const w=s.warmup&&s.warmup.done&&s.warmup.done.length
+        ? `웜업: ${s.warmup.done.join(", ")}${s.warmup.min?` (${s.warmup.min}분)`:""}` : "";
+  const f=s.finisher&&s.finisher.name ? `마무리: ${s.finisher.name} ${s.finisher.min}분` : "";
+  if(w||f) out.push([w,f].filter(Boolean).join(" · "));
   if(s.note) out.push(`메모: ${s.note}`);
   return out;
 }
@@ -1878,7 +1937,7 @@ function coachText(rec){
   const L=[
     `아래는 오늘 웨이트 세션 기록이다. 다음에 같은 Day를 할 때 무엇을 바꿔야 하는지 코칭하라.`,
     ``,
-    `[오늘 · ${rec.date} Day ${rec.day} ${rec.title}]`,
+    `[오늘 · ${rec.date} Day ${rec.day} ${rec.title}${rec.durationSec>=60?` · ${Math.round(rec.durationSec/60)}분`:""}]`,
     ...sessionLines(rec).slice(1),
     ``,
     `[오늘 Day의 목표]`,
