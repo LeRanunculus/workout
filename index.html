@@ -110,7 +110,9 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
 .ex{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px 15px 14px;margin-bottom:11px;scroll-margin-top:14px}
 .ex.done{opacity:.45}
 .ex.active{border-color:var(--brass);box-shadow:0 0 0 1px rgba(224,168,60,.25)}
-.tagline{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+/* align-items 를 주지 않으면 기본값이 stretch 다. 44px 짜리 건너뛰기·⚙ 버튼이 같은 줄에
+   들어오면서 옆의 작은 태그들이 44px 로 늘어나 글자에 비해 알약이 뚱뚱해 보였다. */
+.tagline{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
 .tag{font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   padding:3px 8px;border-radius:20px}
 .tag.big{background:rgba(224,168,60,.18);color:var(--brass);border:1px solid rgba(224,168,60,.4)}
@@ -134,7 +136,10 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
 /* ── 세션 중 퀵수정 ──
    자리가 곧 범위다. 카드에서 하는 것은 언제나 오늘만, ⚙ 시트에서 하는 것은 언제나 계획.
    그래서 「다음부터도 적용」 체크박스가 없다 — 어디서 눌렀는지가 답이다. */
-.skipbox{margin-left:auto;display:flex;align-items:center;gap:7px;height:44px;padding:0 10px;
+/* 둘을 한 덩어리로 묶는다. 따로 두면 줄바꿈될 때 건너뛰기만 태그 줄에 남고
+   ⚙ 가 혼자 다음 줄로 내려가 태그 줄이 3줄이 된다 */
+.tagctl{margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+.skipbox{display:flex;align-items:center;gap:6px;height:44px;padding:0 9px;
   border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;
   font-family:var(--mono);font-size:11px;font-weight:700;color:var(--dim);white-space:nowrap;flex-shrink:0}
 .skipbox .bx{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--alarm);flex-shrink:0;
@@ -629,7 +634,7 @@ const todayEx=()=>sessionAdds.length?D().ex.concat(sessionAdds):D().ex;
 const isAdded=i=>i>=D().ex.length;
 // 오늘의 세트 수. 계획값을 덮어쓰지 않고 얹는다
 const setsOf=i=>{ const v=sessionSets[i]; return v>0?v:(todayEx()[i]||{}).sets||0; };
-function clearSession(){ sessionSets={}; sessionSkip={}; sessionAdds=[]; openSheet=-1; }
+function clearSession(){ sessionSets={}; sessionSkip={}; sessionAdds=[]; openSheet=-1; pickMode=null; }
 
 function blankProgram(){
   return {schema:SCHEMA_VER, rev:1, basedOn:localDate(),
@@ -1233,10 +1238,11 @@ function render(){
     const setsChanged = sessionSets[i]>0 && sessionSets[i]!==e.sets;
     return `<section class="ex ${setsDone(i)>=sets?"done":""} ${i===act?"active":""}" id="ex-${i}">
       <div class="tagline">${tag}${target?`<span class="tag acc">${esc(target)}</span>`:""}${isAdded(i)?`<span class="tag arm">오늘 추가</span>`:""}
-        <button class="skipbox" type="button" data-skip="${i}" aria-pressed="false"
-                aria-label="${esc(name)} 오늘 건너뛰기"><span class="bx">✓</span>건너뛰기</button>
-        <button class="gearbtn" type="button" data-gear="${i}" aria-expanded="${openSheet===i}"
-                aria-label="${esc(name)} 계획 고치기">⚙</button></div>
+        <span class="tagctl">
+          <button class="skipbox" type="button" data-skip="${i}" aria-pressed="false"
+                  aria-label="${esc(name)} 오늘 건너뛰기"><span class="bx">✓</span>건너뛰기</button>
+          <button class="gearbtn" type="button" data-gear="${i}" aria-expanded="${openSheet===i}"
+                  aria-label="${esc(name)} 계획 고치기">⚙</button></span></div>
       <div class="exhead"><div>
         <div class="exname">${esc(name)}${swaps[i]?`<span class="swapped">대체 · 원래 ${esc(orig)}</span>`:""}</div>
         <div class="extarget">${sets} × ${esc(reps)}회 · RIR ${rir} · 휴식 ${rest>=60?(rest/60)+"분":rest+"초"}${setsChanged?` <em>오늘만 ${e.sets}→${sets}</em>`:""}</div>
@@ -1323,12 +1329,20 @@ function bindQuick(){
   });
   on("[data-gear]",e=>{
     const i=+e.currentTarget.dataset.gear;
-    openSheet = openSheet===i ? -1 : i;
+    openSheet = openSheet===i ? -1 : i; pickMode=null;
     if(openSheet===i) sheetBase=D().ex.reduce((a,x)=>a+x.sets,0);   // 세트 수 변화의 기준선
     render();
     if(openSheet===i){ const el=$("ex-"+i); if(el) setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"nearest"}),60); }
   });
-  on("[data-close]",e=>{ openSheet=-1; render(); });
+  on("[data-close]",e=>{ openSheet=-1; pickMode=null; render(); });
+
+  // 종목 고르기 (오늘만 / 자리 교체)
+  on("[data-openpick]",e=>{ pickMode=e.currentTarget.dataset.openpick; render(); });
+  on("[data-pickback]",e=>{ pickMode=null; render(); });
+  on("[data-pick2]",e=>{ const t=e.currentTarget, x=pickCache[+t.dataset.pick2];
+    applyPick(+t.dataset.i, t.dataset.m, x.name, x.ex); });
+  on("[data-pickok]",e=>{ const t=e.currentTarget;
+    applyPick(+t.dataset.pickok, t.dataset.m, $("pickname").value, null); });
 
   // 시트 · 오늘만 구역
   on("[data-alt]",e=>{ const t=e.currentTarget;
@@ -1355,22 +1369,21 @@ function bindQuick(){
   },"change");
   on("[data-qrest]",async e=>{ const t=e.currentTarget;
     todayEx()[+t.dataset.qrest].rest=+t.dataset.v; await sheetSaved(); });
-  on("[data-qinc]",async e=>{ const t=e.currentTarget;
-    todayEx()[+t.dataset.qinc].inc=+t.dataset.v; await sheetSaved(); });
 }
 
 /* ── 오늘 종목 추가 ──
    대개는 이미 아는 종목이다. 고르면 키보드가 안 뜨고 지난 중량까지 따라온다. */
-function addCandidates(){
-  const here=new Set(todayEx().map(x=>x.name)), seen=new Set(), out=[];
-  PROG().forEach(d=>{ if(d.n===curDay) return;
-    d.ex.forEach(x=>{ if(here.has(x.name)||seen.has(x.name)) return;
-      seen.add(x.name); out.push({name:x.name, src:`Day ${d.n}`, ex:x}); }); });
-  Object.keys(idx.lastByExercise).forEach(n=>{
-    if(here.has(n)||seen.has(n)) return;
+function candidates(exclude){
+  const skip=new Set(exclude), seen=new Set(), out=[];
+  PROG().forEach(d=>d.ex.forEach(x=>{ if(skip.has(x.name)||seen.has(x.name)) return;
+    seen.add(x.name); out.push({name:x.name, src:`Day ${d.n}`, ex:x}); }));
+  Object.keys(idx.lastByExercise).forEach(n=>{ if(skip.has(n)||seen.has(n)) return;
     seen.add(n); out.push({name:n, src:"지난 기록", ex:null}); });
   return out;
 }
+const addCandidates=()=>candidates(todayEx().map(x=>x.name));
+// 교체할 때는 그 자리의 종목만 후보에서 빼지 않는다 — 나머지 오늘 종목은 중복이라 뺀다
+const swapCandidates=i=>candidates(todayEx().filter((x,k)=>k!==i).map(x=>x.name));
 function renderAddSheet(){
   const box=$("addsheet");
   if(openSheet!==-2){ box.innerHTML=""; return; }
@@ -1451,22 +1464,26 @@ async function promoteAdds(){
    대체 종목만은 오늘만이므로 시트 안에서도 구역을 갈라 둔다.
    휴식·증량은 스테퍼가 아니라 칩이다 — 실제로 쓰는 값이 몇 개뿐인데
    스테퍼면 2.5 에서 5 로 가는 데 다섯 번을 눌러야 한다. */
-const RESTS=[45,60,90,120,150,180], INCS=[0,1,2.5,5,10];
+/* 증량 단위는 이 시트에 두지 않는다. 이중 점진의 증가폭이라 필요한 값이지만
+   세션 중에 고칠 일이 없다 — 5단계 편집기에 있다. */
+const RESTS=[45,60,90,120,150,180];
+let pickMode=null, pickCache=[];      // 종목 고르기 화면 (오늘만 / 교체)
 function sheetHTML(i){
+  if(pickMode) return pickerHTML(i,pickMode);
   const e=todayEx()[i], alts=e.alts||[];
   let h=`<div class="qsheet"><div class="qz today">오늘만</div>`;
   if(swaps[i]) h+=`<button class="qact plain" type="button" data-revert="${i}">원래 종목으로 되돌리기<span class="aw">${esc(e.name)}</span></button>`;
   if(alts.length) h+=alts.map(a=>`<button class="qact" type="button" data-alt="${i}" data-name="${esc(a[0])}">${esc(a[0])}<span class="aw">${esc(a[1])}</span></button>`).join("");
-  else if(!swaps[i]) h+=`<div class="bakhint">등록된 대체 종목이 없습니다.</div>`;
+  h+=`<button class="qact plain" type="button" data-openpick="today">다른 종목으로 · 오늘만
+        <span class="aw">목록에서 고르거나 직접 입력합니다. 프로그램은 그대로입니다</span></button>`;
+  const rr=repsRange(e.reps);
+  const tot=D().ex.reduce((a,x)=>a+x.sets,0);
+  h+=`<div class="qz prog">프로그램 · 다음부터 계속</div>`;
   if(isAdded(i)){
-    h+=`<div class="qz prog">프로그램</div>
-      <div class="bakhint">오늘 추가한 종목이라 아직 계획에 없습니다.
-        「이 Day 프로그램에도 넣기」를 켜고 추가했다면 세션을 저장할 때 들어갑니다.</div>`;
+    h+=`<div class="bakhint">오늘 추가한 종목이라 아직 계획에 없습니다.
+      「이 Day 프로그램에도 넣기」를 켜고 추가했다면 세션을 저장할 때 들어갑니다.</div>`;
   }else{
-    const tot=D().ex.reduce((a,x)=>a+x.sets,0);
-    const rr=repsRange(e.reps);
-    h+=`<div class="qz prog">프로그램 · 다음부터 계속</div>
-    <div class="qrow"><div class="ql">계획 세트<i>Day ${curDay} · ${sheetBase}세트${tot!==sheetBase?` → ${tot}세트`:""}</i></div>
+    h+=`<div class="qrow"><div class="ql">계획 세트<i>Day ${curDay} · ${sheetBase}세트${tot!==sheetBase?` → ${tot}세트`:""}</i></div>
       <div class="qgrp">
         <button class="qbtn" type="button" data-psets="${i}" data-d="-1" ${e.sets<=1?"disabled":""}>−</button>
         <span class="qval">${e.sets}</span>
@@ -1477,12 +1494,55 @@ function sheetHTML(i){
         <span>~</span>
         <input type="number" inputmode="numeric" min="1" max="100" value="${rr[1]}" data-reps="${i}" data-k="hi" aria-label="반복 상한"></div></div>
     <div class="qrow"><div class="ql">휴식 · 초</div></div>
-    <div class="qchips">${RESTS.map(v=>`<button class="qchip" type="button" data-qrest="${i}" data-v="${v}" aria-pressed="${e.rest===v}">${v}</button>`).join("")}</div>
-    <div class="qrow" style="margin-top:11px"><div class="ql">증량 단위 · kg</div></div>
-    <div class="qchips">${INCS.map(v=>`<button class="qchip" type="button" data-qinc="${i}" data-v="${v}" aria-pressed="${e.inc===v}" ${e.mode==="맨몸"?"disabled":""}>${v}</button>`).join("")}</div>
-    <div class="qerr" id="qerr-${i}"></div>`;
+    <div class="qchips">${RESTS.map(v=>`<button class="qchip" type="button" data-qrest="${i}" data-v="${v}" aria-pressed="${e.rest===v}">${v}</button>`).join("")}</div>`;
   }
+  h+=`<button class="qact" type="button" data-openpick="prog" style="margin-top:11px">이 자리를 다른 종목으로 교체
+        <span class="aw">${i+1}번째 자리는 그대로. 다음부터 계속 이 종목입니다</span></button>
+    <div class="qerr" id="qerr-${i}"></div>`;
   return h+`<button class="qdone" type="button" data-close="${i}">완료</button></div>`;
+}
+/* 자리를 지키는 교체. 「대체 종목」(오늘만)과도, 「오늘 종목 추가」(맨 뒤)와도 다르다.
+   맨 뒤에 추가하고 원래 것을 건너뛰는 것으로는 순서가 어긋나고 손도 두 번 간다. */
+function pickerHTML(i,mode){
+  pickCache=swapCandidates(i).slice(0,16);
+  const cur=todayEx()[i];
+  return `<div class="qsheet">
+    <div class="qz ${mode==="today"?"today":"prog"}">${mode==="today"?"오늘만 다른 종목으로":`${i+1}번째 자리를 교체`}</div>
+    <div class="bakhint">${mode==="today"
+      ? `오늘 이 자리에서만 다른 종목을 합니다. <b>프로그램은 그대로</b>이고 기록에는 원래 종목이 <b>${esc(cur.name)}</b> 로 남습니다.`
+      : `<b>${esc(cur.name)}</b> 를 빼고 그 자리에 넣습니다. <b>순서는 ${i+1}번째 그대로</b>이고, 지난 기록은 어느 쪽도 지우지 않습니다.`}</div>
+    ${pickCache.length?`<div class="qchips" style="flex-direction:column">${pickCache.map((x,k)=>{
+      const l=idx.lastByExercise[x.name];
+      return `<button class="pickchip" type="button" data-pick2="${k}" data-i="${i}" data-m="${mode}">${esc(x.name)}
+        <span class="src">${esc(x.src)}${l?" · 지난 "+esc(lastText(l)):""}</span></button>`;
+    }).join("")}</div>`:`<div class="bakhint">고를 만한 종목이 없습니다. 아래에 직접 입력해주세요.</div>`}
+    <div class="qz prog">직접 입력</div>
+    <input type="text" class="qname" id="pickname" maxlength="40" placeholder="종목 이름">
+    <div class="qerr" id="pickerr"></div>
+    <button class="qdone" type="button" data-pickok="${i}" data-m="${mode}">이 이름으로</button>
+    <button class="coachbtn" type="button" data-pickback="1" style="margin-top:8px">뒤로</button>
+  </div>`;
+}
+function applyPick(i,mode,name,srcEx){
+  const box=$("pickerr");
+  const fail=m=>{ if(box) box.textContent=m; };
+  name=(name||"").trim();
+  if(!name) return fail("이름을 입력하세요.");
+  if(todayEx().some((x,k)=>k!==i&&(swaps[k]||x.name)===name)) return fail("오늘 목록에 이미 있는 종목입니다.");
+  if(mode==="today"){
+    swaps[i]=name; pickMode=null; openSheet=-1; saveDraft(); render(); return;
+  }
+  if(!isAdded(i)&&D().ex.some((x,k)=>k!==i&&x.name===name)) return fail("이 Day 에 이미 있는 종목입니다.");
+  const base = srcEx?JSON.parse(JSON.stringify(srcEx))
+    :{name, sets:3, reps:"8-12", top:12, rir:"2", rest:90, inc:5, mode:"kg",
+      target:"", kind:"보조", equip:"머신", cue:"", alts:[]};
+  base.name=name;
+  if(isAdded(i)){ base.toProgram=todayEx()[i].toProgram; sessionAdds[i-D().ex.length]=base; }
+  else D().ex[i]=base;
+  // 자리에 다른 종목이 들어왔다. 이 자리의 입력과 오늘 값은 전부 의미가 없어진다
+  delete entries[i]; delete swaps[i]; delete sessionSets[i]; delete sessionSkip[i];
+  pickMode=null; openSheet=-1;
+  saveDraft(); stopRest(); sheetSaved();
 }
 // 시트에서 프로그램을 고친 뒤 — 총정리·브리핑·5단계 편집기의 세트 수까지 따라가야 한다
 async function sheetSaved(){ await saveProgram(); renderOverview(); renderBrief(); render(); renderEditor(); }
