@@ -135,6 +135,10 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
 .set input::-webkit-outer-spin-button,.set input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .set input[type=number]{-moz-appearance:textfield}
 .set input.ghost{color:var(--dim);font-style:italic}
+/* 반복 없이 ✓ 를 눌렀을 때 — 어느 칸을 채워야 하는지 눈으로 잡아준다 */
+.set input.need{border-color:var(--alarm);background:#4A3630;animation:needshake .3s}
+@keyframes needshake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@media (prefers-reduced-motion:reduce){.set input.need{animation:none}}
 .chk{min-height:54px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--faint);
   transition:background .15s,color .15s,border-color .15s}
@@ -357,7 +361,11 @@ const DAYS = [
 ];
 const CONTEXT="체지방 감량 + 근육 유지가 목표. 열량 적자 상태이고 밤에 주 5회 이상 5~7km 러닝을 병행 중이라 하체 회복 여력이 제한적임. 웨이트 경험 1년 미만이라 대근육 복합운동 위주에 머신·케이블 위주로 볼륨을 채우되 세션 첫 종목은 프리웨이트 복합운동으로 코어·안정근을 훈련 중. RIR 1~3으로 실패 지점까지 밀지 않음. 헬스장은 요일 고정 없이 주 4~6회 유동적으로 감.";
 const KEY="workout-log", DRAFT="workout-draft", DOW=["일","월","화","수","목","금","토"];
-const $=id=>document.getElementById(id), today=()=>new Date().toISOString().slice(0,10);
+// 날짜는 언제나 로컬 기준 — toISOString()은 UTC라 오전 9시 이전 세션이 전날로 찍힌다
+const pad=n=>String(n).padStart(2,"0");
+function localDate(d){ d=d||new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+const $=id=>document.getElementById(id), today=()=>localDate();
 let store={history:[],last:{}}, curDay=1, entries={}, swaps={}, blocks={}, wl=null, actx=null;
 const D=()=>DAYS[curDay-1];
 
@@ -558,7 +566,18 @@ function bind(){
     const go=()=>{
       const i=+btn.dataset.i,s=+btn.dataset.s,rest=+btn.dataset.rest;
       entries[i]=entries[i]||[]; entries[i][s]=entries[i][s]||{};
-      btn.closest(".set").querySelectorAll("input").forEach(inp=>{
+      const setEl=btn.closest(".set");
+      // 반복 없이 완료하면 저장 때 그 세트가 조용히 버려진다 (filter(x=>x.done&&x.r)).
+      // 45분 뒤 저장 시점에 경고하면 늦다 — 켜지는 순간 막고 반복 칸으로 보낸다.
+      // 끄는 동작은 막지 않는다. 안 그러면 잘못 켠 세트를 되돌릴 수 없다.
+      const rInp=setEl.querySelector('input[data-f="r"]');
+      if(!entries[i][s].done && rInp && !(+rInp.value>0)){
+        rInp.classList.remove("ghost","need"); void rInp.offsetWidth;   // 연타해도 애니메이션이 다시 돈다
+        rInp.classList.add("need"); rInp.focus(); rInp.select();
+        setTimeout(()=>rInp.classList.remove("need"),1200);
+        return;
+      }
+      setEl.querySelectorAll("input").forEach(inp=>{
         if(inp.value!==""&&!inp.disabled) entries[i][s][inp.dataset.f]=+inp.value; });
       const on=!entries[i][s].done; entries[i][s].done=on;
       saveDraft(); keepAwake(); armAudio();
@@ -725,14 +744,18 @@ function logText(rec){
 }
 // 백업 텍스트를 되읽어 지난 기록을 복원한다 (저장소가 없어도 동작)
 function parseBackup(text){
-  let day=null, n=0;
+  let day=null, date=null, n=0;
   const planTop={};
   DAYS.forEach(d=>d.ex.forEach(e=>{ planTop[e[0]]=[e[3],e[1]]; }));
   text.split("\n").forEach(raw=>{
     const line=raw.trim();
-    if(!line||line.startsWith("---")) return;
-    const h=line.match(/^\[[^\]]*\]\s*Day\s*(\d+)/);
-    if(h){ day=+h[1]; return; }
+    // 구분선을 지나면 날짜 문맥이 끊긴다 — 헤더 없는 「누적 기록」 섹션은 date가 null이어야 한다
+    if(line.startsWith("---")){ date=null; return; }
+    if(!line) return;
+    const h=line.match(/^\[([^\]]*)\]\s*Day\s*(\d+)/);
+    if(h){ day=+h[2];
+      const dt=h[1].trim(); date=/^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : null;
+      return; }
     const i=line.indexOf(":");
     if(i<1) return;
     const name=line.slice(0,i).trim();
@@ -740,7 +763,7 @@ function parseBackup(text){
     if(!pairs.length) return;
     const w=+pairs[pairs.length-1][1], reps=pairs.map(p=>+p[2]);
     const t=planTop[name];
-    store.last[name]={w, reps, date:"복원",
+    store.last[name]={w, reps, date,
       allTop: !!(t && reps.length===t[1] && reps.every(r=>r>=t[0]))};
     n++;
   });
