@@ -214,6 +214,47 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
 .bakhint{font-size:12.5px;color:var(--faint);margin-top:9px;line-height:1.5}
 .hint{font-size:13px;color:var(--faint);text-align:center;margin-top:10px;line-height:1.7}
 .hint b{color:var(--brass)}
+
+/* ── 프로그램 편집 (5단계) ── 헬스장이 아니라 집에서 쓰는 화면이지만 터치 타깃은 동일하다 */
+.edchips{display:flex;flex-wrap:wrap;gap:6px;margin:13px 0 14px}
+.edchip{background:var(--panel2);border:1px solid var(--line);color:var(--dim);font-family:var(--mono);
+  font-size:13px;font-weight:700;padding:0 13px;min-height:44px;border-radius:10px;cursor:pointer}
+.edchip[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#2B2836}
+.edchip.add{border-style:dashed;color:var(--faint)}
+.edhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.edhead input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  color:var(--chalk);font-family:var(--sans);font-size:16px;font-weight:700;padding:11px 12px;min-height:46px}
+.edhead input:focus{outline:none;border-color:var(--brass)}
+.eddelta{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--brass);white-space:nowrap}
+.eddelta.same{color:var(--faint)}
+.edrow{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:11px 0;border-top:1px solid var(--line)}
+.edname{font-size:15px;font-weight:700;letter-spacing:-.01em;word-break:keep-all}
+.edmeta{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:4px;font-weight:600}
+.edbtns{display:flex;gap:5px;flex-shrink:0}
+.edbtn{min-width:44px;min-height:44px;padding:0 9px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:9px;color:var(--dim);font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer}
+.edbtn:disabled{opacity:.3;cursor:default}
+.edbtn.eddanger{color:var(--alarm);border-color:rgba(228,100,62,.45)}
+.edbtn:focus-visible,.edchip:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+.edform{background:var(--panel2);border:1px solid var(--brass);border-radius:12px;padding:14px;margin-top:12px}
+.edf{display:grid;grid-template-columns:92px 1fr;gap:9px;align-items:center;margin-bottom:9px}
+.edf label{font-size:13.5px;color:var(--dim);font-weight:600}
+.edf input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--chalk);
+  font-family:var(--mono);font-size:20px;font-weight:700;padding:10px 12px;min-height:46px;
+  font-variant-numeric:tabular-nums}
+.edf input[type=text]{font-family:var(--sans);font-size:16px}
+.edf input:focus{outline:none;border-color:var(--brass);background:#46415A}
+.edf input:disabled{opacity:.4}
+.edf input::-webkit-outer-spin-button,.edf input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.edf input[type=number]{-moz-appearance:textfield}
+.edchk{display:flex;align-items:center;gap:10px;min-height:46px;font-size:13.5px;color:var(--dim);cursor:pointer}
+.edchk input{width:22px;height:22px;accent-color:var(--brass);flex-shrink:0}
+.edpair{display:flex;gap:8px;margin-top:11px}
+.edpair .coachbtn{flex:1}
+.coachbtn.go{background:var(--brass);color:#2B2836;border-color:var(--brass)}
+.coachbtn.danger{color:var(--alarm);border-color:rgba(228,100,62,.45)}
+.ednote{font-size:12.5px;color:var(--brass);line-height:1.5;margin-top:10px;font-weight:600}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -229,6 +270,10 @@ body{background:var(--field);color:var(--chalk);font-family:var(--sans);line-hei
     <div class="bakhint" id="resmsg">저장이 안 되는 환경이면 이 방법으로 지난 중량을 이어갈 수 있습니다.</div>
   </details>
   <section class="overview" id="overview"></section>
+  <details class="restore" id="progedit">
+    <summary>프로그램 편집 · 종목 추가 · 순서 변경</summary>
+    <div id="edbody"></div>
+  </details>
   <section class="brief" id="brief"></section>
   <section class="block" id="warmup"></section>
   <div class="prog"><div class="bar"><i id="bar"></i></div><span class="c" id="count">0 / 0 세트</span><span class="unsaved" id="unsaved" style="display:none">미저장</span></div>
@@ -446,6 +491,10 @@ function newId(prefix,date){
   return `${prefix}-${date}-${r}`;
 }
 const $=id=>document.getElementById(id), today=()=>localDate();
+/* 5단계부터 종목 이름이 사용자 입력이다. 그전까지는 DAYS 상수만 화면에 들어가 필요 없었다.
+   따옴표 하나로 속성이 깨지거나 </textarea> 로 백업 텍스트가 잘려나가면 안 된다. */
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
 /* ── 저장 어댑터 ──
    사파리 프라이빗 모드에서는 localStorage 접근 자체가 예외를 던진다. 전부 감싼다. */
@@ -683,10 +732,10 @@ function renderOverview(){
     <div class="ovnote"><b>메인 복합운동은 프리웨이트</b>, 나머지 볼륨은 머신·케이블로 구성했습니다. 아래 목록에서 <em>노란 글씨</em>가 프리웨이트·맨몸 종목입니다. 요일과 무관하게 <b>갈 때마다 다음 Day를 이어서</b> 하면 되고, 주 4회든 6회든 순서만 지키면 부위별 빈도가 저절로 맞춰집니다. 각 세션은 <b>프리웨이트 복합운동으로 시작해 머신으로 볼륨을 채우고 팔로 마무리</b>합니다.</div>`
     + PROG().map(d=>{
       const sets=d.ex.reduce((a,e)=>a+e.sets,0);
-      const names=d.ex.map(e=>(e.equip==="프리"||e.equip==="맨몸")?`<em>${e.name}</em>`:e.name).join(" · ");
+      const names=d.ex.map(e=>(e.equip==="프리"||e.equip==="맨몸")?`<em>${esc(e.name)}</em>`:esc(e.name)).join(" · ");
       return `<button class="dayrow" data-d="${d.n}" data-sel="${d.n===curDay?1:0}" data-next="${d.n===nd?1:0}">
         <div class="drhead"><span class="dnum">DAY ${d.n}</span><span class="dsets">${(()=>{const h=d.ex.filter(e=>idx.lastByExercise[e.name]).length;return h?`<b class="hasrec">기록 ${h}</b> · `:"";})()}${d.ex.length}종목 · ${sets}세트</span></div>
-        <div class="dtitle">${d.title}</div>
+        <div class="dtitle">${esc(d.title)}</div>
         <div class="dlist">${names}</div>
         ${d.leg?`<div class="dleg">하체일 — 이날 밤 러닝은 5km 이지</div>`:""}
       </button>`;
@@ -707,6 +756,246 @@ function renderOverview(){
   }));
 }
 
+/* ── 프로그램 편집 (5단계 / SCHEMA 「프로그램 — wk:program」) ──
+   진실은 wk:program 이고 코드의 DAYS 는 되돌리기용 원본으로만 남는다.
+   집에서 가끔 하는 조작이라 총정리 아래 접어둔다. 세션 화면의 탭 수는 늘리지 않는다. */
+let edDay=1, edForm=null, edNote="", baseSets={};
+
+const topOf=r=>{ const m=String(r).match(/(\d+)\s*$/); return m?+m[1]:12; };   // "8-12" → 12
+const daySets=d=>d.ex.reduce((a,e)=>a+e.sets,0);
+const renumberDays=()=>PROG().forEach((d,i)=>d.n=i+1);
+
+async function saveProgram(){
+  program.rev++;
+  const r=await writeJSON(K.program,program);
+  if(!r.ok) banner(`프로그램을 저장하지 못했습니다 (${r.err||"원인 미상"}). 앱을 다시 열면 편집 내용이 사라집니다 — 저장 공간을 확보하고 다시 시도해주세요.`);
+  return r.ok;
+}
+function afterEdit(){
+  renumberDays();
+  const len=PROG().length;
+  if(curDay>len) curDay=len;
+  if(edDay>len) edDay=len;
+  idx.rotation.nextDay=Math.min(Math.max(idx.rotation.nextDay||1,1),len);
+  renderOverview(); renderBrief(); renderBlocks(); render(); renderEditor();
+}
+/* entries·swaps 는 종목의 배열 인덱스로 키를 잡는다. 종목을 지우거나 순서를 바꾸면
+   입력해둔 값이 엉뚱한 종목에 가서 붙는다. 그래서 지금 화면에 열려 있는 Day 를 고칠 때는
+   그 입력을 비운다 — 저장하지 않은 세트가 있으면 먼저 물어본다. */
+function clearIfVisible(n){
+  if(n!==curDay) return true;
+  if(!sessionSaved && doneSets()>0 &&
+     !confirm(`화면에 저장하지 않은 기록 ${doneSets()}세트가 있습니다.\n이 Day 의 프로그램을 고치면 입력이 지워집니다. 계속할까요?`)) return false;
+  entries={}; swaps={}; sessionSaved=false; savedRec=null; clearDraft(); stopRest();
+  $("saved").textContent=""; $("reset").style.display="none"; $("coachbox").style.display="none";
+  return true;
+}
+/* 이름을 바꿨을 때 (SCHEMA 「이름을 바꿨을 때 — was」)
+   ① lastByExercise 키를 새 이름으로 옮기고 옛 이름을 was 에 남긴다 — 프리필이 끊기지 않는다
+   ② 옛 이름이 다른 Day 에 아직 남아 있으면 옮기지 않는다. 같은 종목이 두 Day 에 걸친
+      경우가 실제로 있어서, 옮기면 그쪽 프리필이 끊긴다
+   ③ 새 이름에 이미 기록이 있으면 합치지 않는다 — 어느 쪽이 맞는지 알 방법이 없다
+   ④ 이미 저장된 세션의 name 은 고치지 않는다. 그날 실제로 그렇게 불렀다 */
+function moveRecord(oldName,newName){
+  const lbe=idx.lastByExercise;
+  if(!lbe[oldName]) return "";
+  if(PROG().some(d=>d.ex.some(e=>e.name===oldName)))
+    return `"${oldName}" 이 다른 Day 에 남아 있어 지난 기록은 옮기지 않았습니다.`;
+  if(lbe[newName]) return `"${newName}" 에 이미 지난 기록이 있어 그 기록을 그대로 씁니다. "${oldName}" 의 기록은 백업 텍스트에 남습니다.`;
+  lbe[newName]={...lbe[oldName], was:(lbe[oldName].was||[]).concat(oldName)};
+  delete lbe[oldName];
+  idx.rev++;
+  writeJSON(K.index,idx).then(w=>{
+    if(!w.ok) banner(`이름 변경을 저장하지 못했습니다 (${w.err||"원인 미상"}). 앱을 다시 열면 지난 기록이 옛 이름으로 돌아갑니다.`);
+  });
+  return `지난 기록을 "${newName}" 으로 옮겼습니다.`;
+}
+
+function edValidate(name,sets,reps,rest,inc,skip){
+  const day=PROG()[edDay-1];
+  if(!name) return "이름을 입력하세요.";
+  if(day.ex.some((e,i)=>i!==skip&&e.name===name)) return "같은 Day 에 같은 이름의 종목이 이미 있습니다.";
+  if(!/^\d+\s*(-\s*\d+)?$/.test(reps)) return '반복 범위는 "8-12" 또는 "10" 형식이어야 합니다.';
+  if(!(sets>=1&&sets<=10)) return "세트는 1~10 사이여야 합니다.";
+  if(!(rest>=0&&rest<=600)) return "휴식은 0~600초 사이여야 합니다.";
+  if(!(inc>=0&&inc<=50)) return "증량 단위는 0~50kg 사이여야 합니다.";
+  return "";
+}
+async function edApply(){
+  const day=PROG()[edDay-1], at=edForm.i, cur=at>=0?day.ex[at]:null;
+  const name=$("ed_name").value.trim(), reps=$("ed_reps").value.trim().replace(/\s/g,"");
+  const sets=+$("ed_sets").value, rest=+$("ed_rest").value, bw=$("ed_bw").checked;
+  const inc=bw?0:(+$("ed_inc").value||0);
+  const err=edValidate(name,sets,reps,rest,inc,at);
+  if(err){ $("ed_err").textContent=err; return; }
+  if(!clearIfVisible(edDay)) return;
+  let note="";
+  if(cur){
+    const old=cur.name;
+    cur.name=name; cur.sets=sets; cur.reps=reps; cur.top=topOf(reps); cur.rest=rest; cur.inc=inc;
+    // 맨몸 여부를 건드리지 않았으면 equip 을 덮어쓰지 않는다 — "프리" 표시가 사라지면 안 된다
+    if(bw!==(cur.mode==="맨몸")){ cur.mode=bw?"맨몸":"kg"; cur.equip=bw?"맨몸":"머신"; }
+    if(old!==name) note=moveRecord(old,name);
+  }else{
+    // 6개만 묻고 나머지는 기본값이다 (SCHEMA 「편집 규칙」). alts 가 비면 대체 버튼은 감춘다
+    day.ex.push({name,sets,reps,top:topOf(reps),rir:bw?"—":"2",rest,inc,
+      mode:bw?"맨몸":"kg", target:"직접 추가", kind:"보조", equip:bw?"맨몸":"머신",
+      cue:"", alts:[]});
+  }
+  edForm=null; edNote=note;
+  await saveProgram(); afterEdit();
+}
+async function edMove(i,dir){
+  const day=PROG()[edDay-1], j=i+dir;
+  if(j<0||j>=day.ex.length) return;
+  if(!clearIfVisible(edDay)) return;
+  const t=day.ex[i]; day.ex[i]=day.ex[j]; day.ex[j]=t;
+  edNote=""; await saveProgram(); afterEdit();
+}
+async function edDel(i){
+  const day=PROG()[edDay-1], e=day.ex[i];
+  if(!confirm(`"${e.name}" 을(를) Day ${edDay} 에서 뺍니다.\n지난 기록은 지우지 않습니다 — 다시 추가하면 되살아납니다.`)) return;
+  if(!clearIfVisible(edDay)) return;
+  day.ex.splice(i,1);
+  edForm=null; edNote=`"${e.name}" 을 뺐습니다. 지난 기록은 그대로 남아 있습니다.`;
+  await saveProgram(); afterEdit();
+}
+// 새 Day 의 웜업·마무리는 renderBlocks/renderBrief 가 반드시 참조한다. 비워두면 화면이 죽는다
+const NEWDAY=()=>({n:0,title:"새 Day",sub:"",leg:false,
+  warmup:[["폼롤러","뭉친 부위 각 1분씩",300],
+          ["트레드밀 걷기","경사 4% · 시속 5~6km",420],
+          ["첫 종목 워밍업 세트","본세트 무게의 50%로 10회 × 2세트",0]],
+  finish:{name:"천국의 계단",detail:"낮은 단계로 12분 · 대화 가능한 강도",sec:720,warn:false},
+  focus:"직접 추가한 Day 입니다. 종목을 채워주세요.",run:"6~7km 평소 페이스",ex:[]});
+async function edAddDay(){
+  PROG().push(NEWDAY()); renumberDays();
+  edDay=PROG().length; edForm=null;
+  edNote=`Day ${edDay} 을 추가했습니다. 제목을 고치고 종목을 채워주세요.`;
+  await saveProgram(); snapSets(); afterEdit();
+}
+async function edDelDay(){
+  const k=edDay, len=PROG().length, d=PROG()[k-1];
+  if(len<=1){ edNote="Day 가 하나뿐이라 삭제할 수 없습니다."; renderEditor(); return; }
+  if(!confirm(`Day ${k} · ${d.title} 을(를) 통째로 삭제합니다.\n종목 ${d.ex.length}개가 프로그램에서 빠집니다 (지난 기록은 그대로).\n뒤쪽 Day 번호가 하나씩 당겨지고, 이미 저장된 기록의 Day 번호는 바뀌지 않습니다.`)) return;
+  if(!clearIfVisible(k)) return;
+  PROG().splice(k-1,1);
+  const nlen=PROG().length;
+  /* rotation 은 Day 번호를 그대로 키·값으로 쓴다. 번호가 당겨지므로 같이 당겨준다.
+     안 하면 브리핑의 "마지막 수행" 날짜가 엉뚱한 Day 에 붙고 다음 Day 가 어긋난다. */
+  const b=idx.rotation.byDay||{}, nb={};
+  Object.keys(b).forEach(key=>{ const n=+key; if(n<k) nb[n]=b[key]; else if(n>k) nb[n-1]=b[key]; });
+  idx.rotation.byDay=nb;
+  const shift=v=>(v==null?null:(v<k?v:(v>k?v-1:null)));
+  idx.rotation.lastDay=shift(idx.rotation.lastDay);
+  idx.rotation.nextDay=Math.min(Math.max(shift(idx.rotation.nextDay)||(k>nlen?1:k),1),nlen);
+  idx.rev++;
+  renumberDays();
+  if(edDay>nlen) edDay=nlen;
+  if(curDay>nlen) curDay=nlen;
+  edForm=null; edNote=`Day ${k} 을 삭제했습니다.`;
+  await saveProgram();
+  const w=await writeJSON(K.index,idx);
+  if(!w.ok) banner(`Day 삭제를 저장하지 못했습니다 (${w.err||"원인 미상"}). 앱을 다시 열면 순환 위치가 어긋날 수 있습니다.`);
+  snapSets(); afterEdit();
+}
+async function edReset(){
+  if(!confirm("프로그램을 기본값으로 되돌립니다.\n직접 추가하거나 고친 종목이 모두 사라집니다.\n지난 기록(중량 · 반복)은 지우지 않습니다.")) return;
+  if(!clearIfVisible(curDay)) return;
+  program.days=JSON.parse(JSON.stringify(DAYS));   // 코드의 DAYS 가 되돌리기용 원본이다
+  renumberDays();
+  edDay=Math.min(edDay,PROG().length); edForm=null;
+  edNote="기본 프로그램으로 되돌렸습니다. 지난 기록은 그대로 있습니다.";
+  await saveProgram(); snapSets(); afterEdit();
+}
+function snapSets(){ baseSets={}; PROG().forEach(d=>{ baseSets[d.n]=daySets(d); }); }
+
+function edFormHTML(){
+  const day=PROG()[edDay-1], e=edForm.i>=0?day.ex[edForm.i]:null;
+  const v=e?{name:e.name,sets:e.sets,reps:e.reps,rest:e.rest,inc:e.inc,bw:e.mode==="맨몸"}
+           :{name:"",sets:3,reps:"8-12",rest:90,inc:5,bw:false};
+  return `<div class="edform">
+    <div class="rgt">${e?"종목 수정":"종목 추가"} · DAY ${edDay}</div>
+    <div class="edf"><label for="ed_name">이름</label>
+      <input type="text" id="ed_name" maxlength="40" value="${esc(v.name)}" placeholder="예) 케이블 풀오버"></div>
+    <div class="edf"><label for="ed_sets">세트</label>
+      <input type="number" id="ed_sets" inputmode="numeric" min="1" max="10" value="${v.sets}"></div>
+    <div class="edf"><label for="ed_reps">반복 범위</label>
+      <input type="text" id="ed_reps" inputmode="numeric" value="${esc(v.reps)}" placeholder="8-12"></div>
+    <div class="edf"><label for="ed_rest">휴식 · 초</label>
+      <input type="number" id="ed_rest" inputmode="numeric" min="0" max="600" step="15" value="${v.rest}"></div>
+    <div class="edf"><label for="ed_inc">증량 · kg</label>
+      <input type="number" id="ed_inc" inputmode="decimal" min="0" max="50" step="0.5" value="${v.inc}" ${v.bw?"disabled":""}></div>
+    <label class="edchk"><input type="checkbox" id="ed_bw" ${v.bw?"checked":""}> 맨몸 종목 — 무게를 입력하지 않습니다</label>
+    <div class="bakhint">반복 범위 상단(증량 판정 기준)은 위 값에서 자동으로 뽑습니다.</div>
+    <div class="err" id="ed_err"></div>
+    <div class="edpair"><button type="button" class="coachbtn" id="ed_cancel">취소</button>
+      <button type="button" class="coachbtn go" id="ed_ok">${e?"수정 저장":"추가"}</button></div>
+  </div>`;
+}
+function renderEditor(){
+  const box=$("edbody"); if(!box) return;
+  if(!$("progedit").open){ box.innerHTML=""; return; }
+  const len=PROG().length;
+  edDay=Math.min(Math.max(edDay,1),len);
+  const d=PROG()[edDay-1], now=daySets(d), was=baseSets[d.n];
+  // 보여주는 것은 총 세트 수 변화뿐이다. 근육군별 볼륨은 계산하지 않는다 (SPEC 5단계)
+  const delta=(was!==undefined&&was!==now)
+    ? `<span class="eddelta">${was}세트 → ${now}세트</span>`
+    : `<span class="eddelta same">${now}세트</span>`;
+  let h=`<div class="bakhint">기구가 없거나 프로그램을 조정할 때 씁니다.
+    <b>지난 기록은 어떤 편집으로도 지워지지 않습니다.</b> 세션 중 오늘만 바꾸는 것은 종목 카드의 「대체 종목」이 맡습니다.</div>
+    <div class="edchips">`
+    + PROG().map(x=>`<button type="button" class="edchip" data-day="${x.n}" aria-pressed="${x.n===edDay}">Day ${x.n}</button>`).join("")
+    + `<button type="button" class="edchip add" id="ed_adday">+ Day</button></div>
+    <div class="edhead"><input type="text" id="ed_title" maxlength="30" value="${esc(d.title)}" aria-label="Day ${edDay} 제목">${delta}</div>
+    <label class="edchk"><input type="checkbox" id="ed_leg" ${d.leg?"checked":""}> 하체일 — 이날 밤 러닝을 낮춥니다</label>`;
+  h += d.ex.length ? d.ex.map((e,i)=>`<div class="edrow">
+      <div><div class="edname">${esc(e.name)}</div>
+        <div class="edmeta">${e.sets}×${esc(e.reps)} · 휴식 ${e.rest}초 · ${e.mode==="맨몸"?"맨몸":"+"+e.inc+"kg"}${idx.lastByExercise[e.name]?' · <b class="hasrec">기록 있음</b>':""}</div></div>
+      <div class="edbtns">
+        <button type="button" class="edbtn" data-mv="${i}" data-dir="-1" ${i===0?"disabled":""} aria-label="위로">↑</button>
+        <button type="button" class="edbtn" data-mv="${i}" data-dir="1" ${i===d.ex.length-1?"disabled":""} aria-label="아래로">↓</button>
+        <button type="button" class="edbtn" data-ed="${i}">수정</button>
+        <button type="button" class="edbtn eddanger" data-del="${i}" aria-label="빼기">✕</button>
+      </div></div>`).join("")
+    : `<div class="bakhint" style="border-top:1px solid var(--line);padding-top:12px;margin-top:6px">이 Day 에는 종목이 없습니다.</div>`;
+  if(edForm) h+=edFormHTML();
+  else h+=`<div class="edpair"><button type="button" class="coachbtn" id="ed_add">+ 종목 추가</button></div>`;
+  if(edNote) h+=`<div class="ednote">${esc(edNote)}</div>`;
+  h+=`<div class="edpair" style="margin-top:14px">
+      <button type="button" class="coachbtn danger" id="ed_delday">이 Day 삭제</button>
+      <button type="button" class="coachbtn" id="ed_reset">기본값으로 되돌리기</button></div>`;
+  box.innerHTML=h;
+  bindEditor();
+}
+function bindEditor(){
+  const box=$("edbody"), day=PROG()[edDay-1];
+  const on=(sel,ev,fn)=>box.querySelectorAll(sel).forEach(el=>el.addEventListener(ev,fn));
+  on(".edchip[data-day]","click",e=>{ edDay=+e.currentTarget.dataset.day; edForm=null; edNote=""; renderEditor(); });
+  on("[data-mv]","click",e=>edMove(+e.currentTarget.dataset.mv,+e.currentTarget.dataset.dir));
+  on("[data-ed]","click",e=>{ edForm={i:+e.currentTarget.dataset.ed}; edNote=""; renderEditor(); });
+  on("[data-del]","click",e=>edDel(+e.currentTarget.dataset.del));
+  const add=$("ed_add"); if(add) add.addEventListener("click",()=>{ edForm={i:-1}; edNote=""; renderEditor(); });
+  const ok=$("ed_ok"); if(ok) ok.addEventListener("click",edApply);
+  const cancel=$("ed_cancel"); if(cancel) cancel.addEventListener("click",()=>{ edForm=null; renderEditor(); });
+  const bw=$("ed_bw"); if(bw) bw.addEventListener("change",()=>{ $("ed_inc").disabled=bw.checked; });
+  $("ed_adday").addEventListener("click",edAddDay);
+  $("ed_delday").addEventListener("click",edDelDay);
+  $("ed_reset").addEventListener("click",edReset);
+  // 제목·하체 여부는 구조를 바꾸지 않는다 — 입력을 비울 이유가 없다
+  $("ed_title").addEventListener("change",async e=>{
+    const t=e.target.value.trim(); if(!t||t===day.title) return;
+    day.title=t; edNote=""; await saveProgram(); afterEdit();
+  });
+  $("ed_leg").addEventListener("change",async e=>{
+    day.leg=e.target.checked; edNote=""; await saveProgram(); afterEdit();
+  });
+}
+$("progedit").addEventListener("toggle",()=>{
+  if($("progedit").open){ edDay=curDay; edForm=null; edNote=""; snapSets(); }
+  renderEditor();
+});
+
 /* ── 브리핑 ── */
 function renderBrief(){
   const d=D();
@@ -720,7 +1009,7 @@ function renderBrief(){
   if(prevDate){ const days=Math.round((new Date(today())-new Date(prevDate))/86400000);
     prevTxt=`마지막 수행 · ${prevDate} (${days===0?"오늘":days+"일 전"})`; }
   $("brief").innerHTML=`
-    <h1><span>DAY ${d.n}</span> · ${d.title}</h1>
+    <h1><span>DAY ${d.n}</span> · ${esc(d.title)}</h1>
     <div class="focus">${d.focus}</div>
     <div class="facts">
       <div class="fact"><div class="fv">${d.ex.length}</div><div class="fk">종목</div></div>
@@ -816,25 +1105,26 @@ function render(){
       }
       return `<div class="set"><span class="sn">${s+1}</span>
         <input type="number" inputmode="decimal" step="0.5" placeholder="${bw?"—":"kg"}" class="${gw?"ghost":""}" ${bw?"disabled":""}
-          value="${bw||pw===undefined||pw===0?"":pw}" data-i="${i}" data-s="${s}" data-f="w" aria-label="${name} ${s+1}세트 중량">
+          value="${bw||pw===undefined||pw===0?"":pw}" data-i="${i}" data-s="${s}" data-f="w" aria-label="${esc(name)} ${s+1}세트 중량">
         <input type="number" inputmode="numeric" placeholder="회" class="${gr?"ghost":""}"
-          value="${pr===undefined?"":pr}" data-i="${i}" data-s="${s}" data-f="r" aria-label="${name} ${s+1}세트 반복">
+          value="${pr===undefined?"":pr}" data-i="${i}" data-s="${s}" data-f="r" aria-label="${esc(name)} ${s+1}세트 반복">
         <div class="chk" role="button" tabindex="0" aria-pressed="${!!v.done}" data-i="${i}" data-s="${s}" data-rest="${rest}" aria-label="${s+1}세트 완료">✓</div></div>`;
     }).join("");
     return `<section class="ex ${setsDone(i)===sets?"done":""} ${i===act?"active":""}" id="ex-${i}">
       <div class="tagline">${tag}<span class="tag acc">${target}</span></div>
       <div class="exhead"><div>
-        <div class="exname">${name}${swaps[i]?`<span class="swapped">대체 · 원래 ${orig}</span>`:""}</div>
-        <div class="extarget">${sets} × ${reps}회 · RIR ${rir} · 휴식 ${rest>=60?(rest/60)+"분":rest+"초"}</div>
+        <div class="exname">${esc(name)}${swaps[i]?`<span class="swapped">대체 · 원래 ${esc(orig)}</span>`:""}</div>
+        <div class="extarget">${sets} × ${esc(reps)}회 · RIR ${rir} · 휴식 ${rest>=60?(rest/60)+"분":rest+"초"}</div>
         <div class="cue">${cue}</div>
       </div><span class="idx">${String(i+1).padStart(2,"0")}</span></div>
       <div class="last">${!l?"지난 기록 없음 — 가볍게 시작"
-        :`지난 기록 · ${fallback?orig+" ":""}${lastText(l)}${fallback?' <b class="fb">(다른 종목)</b>':""}`}</div>
+        :`지난 기록 · ${fallback?esc(orig)+" ":""}${lastText(l)}${fallback?' <b class="fb">(다른 종목)</b>':""}`}</div>
       ${up?`<span class="up">↑ 다음 중량 +${inc||2.5}kg</span>`:(own?`<span class="keep">지난 중량 유지 · 반복 수를 늘려보세요</span>`:"")}
       <div class="setlabels"><span></span><span>${bw?"맨몸":wmode}${l?" · 제안":""}</span><span>반복</span><span>완료</span></div>
       <div class="sets">${rows}</div>
       ${swaps[i]?`<button class="revert" data-rev="${i}">원래 종목으로 되돌리기</button>`
-                :`<button class="swapbtn" data-i="${i}">기구가 차 있어요 — 대체 종목</button>`}
+                /* 직접 추가한 종목은 alts 가 비어 있다. 버튼을 두면 눌러도 아무것도 안 나온다 */
+                :((alts||[]).length?`<button class="swapbtn" data-i="${i}">기구가 차 있어요 — 대체 종목</button>`:"")}
       <div class="alts" id="alts-${i}"></div>
     </section>`;
   }).join("");
@@ -1123,7 +1413,7 @@ function bindCopy(btnId,textId){
 function showBackup(){
   const box=$("backup");
   box.style.display="block";
-  box.innerHTML=`<textarea id="baktext" readonly rows="9">${logText()}</textarea>
+  box.innerHTML=`<textarea id="baktext" readonly rows="9">${esc(logText())}</textarea>
     <button class="coachbtn" id="bakcopy" style="background:var(--brass);color:#2B2836;border-color:var(--brass)">한 번에 복사하기</button>
     <div class="bakhint">메모 앱에 붙여두세요. 맨 위 "지난 기록 불러오기"에 그대로 붙여넣으면 복원됩니다.</div>`;
   bindCopy("bakcopy","baktext");
@@ -1174,7 +1464,7 @@ function showCoach(rec){
   box.innerHTML=`<span class="eyebrow">세션 코치</span>
     <button class="coachbtn" id="coachcopy" style="background:var(--brass);color:#2B2836;border-color:var(--brass)">코칭 프롬프트 복사</button>
     <div class="bakhint">복사해서 Claude 앱에 붙여넣으세요.</div>
-    <textarea id="coachtext" readonly rows="6">${coachText(rec)}</textarea>`;
+    <textarea id="coachtext" readonly rows="6">${esc(coachText(rec))}</textarea>`;
   bindCopy("coachcopy","coachtext");
 }
 function applyRestore(text,src){
@@ -1190,15 +1480,15 @@ function applyRestore(text,src){
   writeJSON(K.index,idx).then(w=>{            // 결과를 확인한다 — 조용히 실패하면 안 된다
     if(!w.ok) banner(`복원한 내용을 저장하지 못했습니다 (${w.err||"원인 미상"}). 앱을 다시 열면 사라집니다 — 저장 공간을 확보하고 다시 시도해주세요.`);
   });
-  renderOverview(); renderBrief(); renderBlocks(); render();
+  renderOverview(); renderBrief(); renderBlocks(); render(); renderEditor();  // 편집기가 열려 있으면 「기록 있음」 표시도 갱신한다
   // 복원된 내용을 그대로 보여준다 — 어느 Day에 들어갔는지까지
   let html=`<div class="okline">${src} 종목 ${r.count}개 복원 완료</div>`;
   PROG().forEach(d=>{
     const hit=d.ex.filter(e=>idx.lastByExercise[e.name]);
     if(!hit.length) return;
-    html+=`<div class="rgroup"><div class="rgt">DAY ${d.n} · ${d.title}</div>`
+    html+=`<div class="rgroup"><div class="rgt">DAY ${d.n} · ${esc(d.title)}</div>`
       + hit.map(e=>{ const l=idx.lastByExercise[e.name];
-          return `<div class="rgi"><span>${e.name}</span><span class="rgv">${lastText(l)}${l.allTop?' <b>↑증량</b>':''}</span></div>`;
+          return `<div class="rgi"><span>${esc(e.name)}</span><span class="rgv">${lastText(l)}${l.allTop?' <b>↑증량</b>':''}</span></div>`;
         }).join("") + `</div>`;
   });
   if(r.day) html+=`<div class="okline">화면은 다음 차례인 <b>Day ${curDay}</b>로 이동했습니다. 위 목록의 Day를 눌러 확인할 수 있습니다.</div>`;
