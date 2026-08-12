@@ -14,6 +14,7 @@
 | | 상태 |
 |---|---|
 | CLAUDE.md · SCHEMA.md · SPEC.md · PROGRAM.md | 확정. **미결 항목 0** |
+| `COACH-BRIEF.md` | 기록을 읽는 **Claude 채팅방용** 브리프. 개발 문서가 아니다. **세션 텍스트 형식이나 프로그램 규칙을 바꾸면 반드시 같이 갱신할 것** |
 | `index.html` | 0~5단계 + 퀵수정. 단일 파일 약 2070줄 |
 | `manifest.json` · `sw.js` | 있음. **캐시 `workout-v8`** |
 | `icons/` | 4개. 실측 검증 완료. **다시 만들지 말 것** |
