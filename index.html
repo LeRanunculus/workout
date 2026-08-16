@@ -423,7 +423,7 @@ const DAYS = [
           ["첫 종목 워밍업 세트","본세트 무게의 50%로 10회 × 2세트",0]],
   finish:{name:"천국의 계단",detail:"낮은 단계로 12분 · 대화 가능한 강도",sec:720,warn:false},
   focus:"덤벨 벤치프레스로 시작해 견갑 안정근부터 깨우고, 나머지 볼륨은 머신으로 안전하게 채웁니다.",
-  run:"6~7km 평소 페이스",ex:[
+  run:"5km 평소 페이스",ex:[
   {name:"덤벨 벤치프레스",sets:3,reps:"8-12",top:12,rir:"2",rest:120,inc:2.5,mode:"kg",
    target:"가슴",kind:"대근육",equip:"프리",
    cue:"견갑을 벤치에 고정하고 덤벨이 흔들리지 않게 통제",
@@ -443,10 +443,13 @@ const DAYS = [
   {name:"케이블 트라이셉스 푸시다운",sets:3,reps:"10-15",top:15,rir:"1-2",rest:60,inc:2.5,mode:"kg",
    target:"삼두",kind:"팔",equip:"케이블",
    cue:"팔꿈치 옆구리에 고정",
-   alts:[["로프 푸시다운","끝에서 벌리며 수축 강조"],["트라이셉스 익스텐션 머신","팔꿈치 완전 고정"]]},
-  {name:"트라이셉스 익스텐션 머신",sets:2,reps:"12-15",top:15,rir:"1-2",rest:60,inc:5,mode:"kg",
-   target:"삼두 장두",kind:"팔",equip:"머신",
-   cue:"팔꿈치를 패드에서 떼지 않기",
+   alts:[["로프 푸시다운","끝에서 벌리며 수축 강조"],["오버헤드 덤벨 트라이셉스 익스텐션","장두를 늘린 자세"]]},
+  /* 헬스장에 트라이셉스 익스텐션 머신이 없어 바꿨다. 이 자리는 원래 삼두 장두를 노린
+     것이고, 팔을 머리 위로 올린 자세가 장두를 늘린 상태로 만들어 목적에 더 맞는다.
+     머신 → 덤벨이라 증량 단위가 5 → 2.5 로 내려간다 (2026-08-17) */
+  {name:"오버헤드 덤벨 트라이셉스 익스텐션",sets:2,reps:"12-15",top:15,rir:"1-2",rest:60,inc:2.5,mode:"kg",
+   target:"삼두 장두",kind:"팔",equip:"프리",
+   cue:"팔꿈치를 귀 옆에 고정, 벌어지지 않게",
    alts:[["케이블 오버헤드 익스텐션","장두 신장 자세"],["딥스 머신","삼두 위주 복합"]]}]},
 
  {n:2,title:"하체 앞쪽",sub:"대퇴사두 중심",leg:true,
@@ -472,10 +475,15 @@ const DAYS = [
    target:"햄스트링",kind:"보조",equip:"머신",
    cue:"골반 붙이고 반동 없이",
    alts:[["시티드 레그컬","같은 무릎 굴곡"],["케이블 레그컬","한 다리씩 가능"]]},
-  {name:"레그프레스 카프레이즈",sets:3,reps:"10-15",top:15,rir:"1-2",rest:60,inc:10,mode:"kg",
-   target:"종아리",kind:"보조",equip:"머신",
-   cue:"끝까지 내렸다 끝까지 올리기",
-   alts:[["스탠딩 카프레이즈 머신","서서 하는 같은 자극"],["한 발 계단 카프레이즈","맨몸으로 가능"]]},
+  /* 카프레이즈가 있던 자리다. 사용자가 종아리 발달을 원하지 않아 뺐고, 러닝이 이미
+     종아리를 쓰고 있다. 「러너에게 카프 강화가 필요하다」는 이유로 되살리지 말 것.
+     대신 중둔근을 넣는다 — 프로그램 전체에서 비어 있던 자리이고, 중둔근이 약하면
+     착지 때 무릎이 안으로 무너져 러너 무릎·장경인대 증후군의 원인이 된다.
+     카프레이즈보다 러닝 부상 예방에 직접적이고 전신 피로가 거의 없다 (2026-08-17) */
+  {name:"힙 어브덕션 머신",sets:3,reps:"12-15",top:15,rir:"1-2",rest:60,inc:5,mode:"kg",
+   target:"중둔근",kind:"보조",equip:"머신",
+   cue:"상체가 뒤로 눕지 않게 · 무릎을 바깥으로 밀어내는 느낌",
+   alts:[["케이블 힙 어브덕션","한 다리씩 가능"],["밴드 사이드 스텝","기구 없이 중둔근"]]},
   {name:"바이셉스 컬 머신",sets:2,reps:"10-15",top:15,rir:"1-2",rest:60,inc:5,mode:"kg",
    target:"이두",kind:"팔",equip:"머신",
    cue:"팔을 완전히 펴고 시작",
@@ -487,7 +495,7 @@ const DAYS = [
           ["첫 종목 워밍업 세트","본세트 무게의 50%로 10회 × 2세트",0]],
   finish:{name:"천국의 계단",detail:"낮은 단계로 12분 · 대화 가능한 강도",sec:720,warn:false},
   focus:"원암 덤벨 로우로 시작합니다. 한 팔로 당기는 동안 몸통이 돌아가지 않게 버티는 게 코어 훈련입니다.",
-  run:"6~7km 평소 페이스",ex:[
+  run:"5km 평소 페이스",ex:[
   {name:"원암 덤벨 로우",sets:3,reps:"8-12",top:12,rir:"2",rest:90,inc:2.5,mode:"kg",
    target:"광배·코어",kind:"대근육",equip:"프리",
    cue:"몸통이 돌아가지 않게 버티며 팔꿈치를 허리로",
@@ -536,10 +544,10 @@ const DAYS = [
    target:"햄스트링",kind:"보조",equip:"머신",
    cue:"끝에서 1초 멈춤",
    alts:[["라잉 레그컬","같은 무릎 굴곡"],["케이블 레그컬","한 다리씩 가능"]]},
-  {name:"시티드 카프레이즈",sets:3,reps:"12-15",top:15,rir:"1-2",rest:60,inc:5,mode:"kg",
-   target:"가자미근",kind:"보조",equip:"머신",
-   cue:"내리는 구간을 천천히",
-   alts:[["레그프레스 카프레이즈","가자미근 유사 각도"],["스탠딩 카프레이즈 머신","비복근 비중 큼"]]},
+  /* 카프레이즈를 뺀 자리다. Day 2 와 달리 대체 종목을 넣지 않는다 —
+     7종목 19세트에서 6종목 16세트로 줄어드는 것이 의도된 결과다.
+     세션이 길어 뒤쪽 종목이 잘리는 일이 있었다. 「볼륨이 줄었으니 채우자」고
+     판단하지 말 것 (2026-08-17) */
   {name:"행잉 레그레이즈",sets:3,reps:"10-15",top:15,rir:"—",rest:60,inc:0,mode:"맨몸",
    target:"코어",kind:"보조",equip:"맨몸",
    cue:"골반부터 말아올리기 · 다리만 흔들지 말 것",
@@ -555,7 +563,7 @@ const DAYS = [
           ["첫 종목 워밍업 세트","어시스트 풀업 가벼운 보조로 8회 × 2세트",0]],
   finish:{name:"천국의 계단",detail:"낮은 단계로 15분 · 대화 가능한 강도",sec:900,warn:false},
   focus:"풀업과 덤벨 숄더프레스로 시작합니다. 둘 다 몸통으로 버티는 힘이 필요한 동작이라 코어가 같이 큽니다.",
-  run:"6~7km 평소 페이스",ex:[
+  run:"5km 평소 페이스",ex:[
   {name:"풀업 (또는 어시스트 풀업 머신)",sets:3,reps:"5-10",top:10,rir:"2",rest:120,inc:0,mode:"맨몸",
    target:"광배·코어",kind:"대근육",equip:"맨몸",
    cue:"어깨 먼저 내리고 당기기 · 몸이 흔들리지 않게",
@@ -579,13 +587,13 @@ const DAYS = [
   {name:"딥스 머신",sets:3,reps:"10-12",top:12,rir:"1-2",rest:60,inc:5,mode:"kg",
    target:"삼두",kind:"팔",equip:"머신",
    cue:"팔꿈치를 몸통 옆으로 붙인 채",
-   alts:[["트라이셉스 익스텐션 머신","삼두만 고립"],["케이블 푸시다운","케이블로 대체"]]},
+   alts:[["오버헤드 덤벨 트라이셉스 익스텐션","장두를 늘린 자세"],["케이블 푸시다운","케이블로 대체"]]},
   {name:"어브도미널 크런치 머신",sets:3,reps:"12-15",top:15,rir:"1-2",rest:60,inc:5,mode:"kg",
    target:"복부",kind:"보조",equip:"머신",
    cue:"허리가 아니라 복부로 말기",
    alts:[["케이블 크런치","같은 패턴을 케이블로"],["행잉 레그레이즈","맨몸으로 하복부"]]}]}
 ];
-const CONTEXT="체지방 감량 + 근육 유지가 목표. 열량 적자 상태이고 밤에 주 5회 이상 5~7km 러닝을 병행 중이라 하체 회복 여력이 제한적임. 웨이트 경험 1년 미만이라 대근육 복합운동 위주에 머신·케이블 위주로 볼륨을 채우되 세션 첫 종목은 프리웨이트 복합운동으로 코어·안정근을 훈련 중. RIR 1~3으로 실패 지점까지 밀지 않음. 헬스장은 요일 고정 없이 주 4~6회 유동적으로 감.";
+const CONTEXT="체지방 감량 + 근육 유지가 목표. 열량 적자 상태이고 밤에 주 5회 이상 5km 러닝을 병행 중이라 하체 회복 여력이 제한적임. 웨이트 경험 1년 미만이라 대근육 복합운동 위주에 머신·케이블 위주로 볼륨을 채우되 세션 첫 종목은 프리웨이트 복합운동으로 코어·안정근을 훈련 중. RIR 1~3으로 실패 지점까지 밀지 않음. 헬스장은 요일 고정 없이 주 4~6회 유동적으로 감.";
 const DOW=["일","월","화","수","목","금","토"];
 const SCHEMA_VER=1;
 const K={ index:"wk:index", month:m=>"wk:"+m, program:"wk:program", draft:"wk:draft" };
@@ -685,7 +693,8 @@ function seedSwaps(){
 const fromMemory=(i,orig)=>swaps[i]&&swaps[i]===((idx.swapMemory||{})[orig]);
 
 function blankProgram(){
-  return {schema:SCHEMA_VER, rev:1, basedOn:localDate(),
+  // progRev 를 최신으로 박아둔다 — 새로 설치한 폰은 DAYS 를 그대로 받으므로 개정이 돌 필요가 없다
+  return {schema:SCHEMA_VER, rev:1, progRev:PROGRAM_REV, basedOn:localDate(),
           days:JSON.parse(JSON.stringify(DAYS))};
 }
 function blankIndex(){
@@ -790,6 +799,73 @@ function applyRotation(day,date){
   if(!idx.programStart||date<idx.programStart) idx.programStart=date;
 }
 
+/* ── 프로그램 개정 (PROGRAM_REV) ──
+   코드의 DAYS 를 고쳐 배포해도 폰의 wk:program 은 따라오지 않는다 — 진실이 그쪽이기
+   때문이다 (SCHEMA 「프로그램」). 반영할 길이 「기본값으로 되돌리기」밖에 없었는데
+   그건 사용자가 앱에서 고친 것까지 통째로 날리고, 종목 이름이 바뀌었을 때
+   lastByExercise 키를 옮기지 않아 기록이 끊긴다.
+   그래서 바뀐 부분만 조건을 보고 얹는다. 이미 손댄 종목은 건드리지 않고,
+   두 번 돌아도 결과가 같다(멱등). 새 폰은 DAYS 를 그대로 받으므로 아예 돌지 않는다.
+   프로그램을 또 바꿀 때는 PROGRAM_REV 를 올리고 블록을 하나 더한다. */
+const PROGRAM_REV=2;
+// 정의는 언제나 DAYS 에서 가져온다 — 여기에 다시 적으면 둘이 어긋난다
+const fromDAYS=n=>{ let f=null;
+  DAYS.forEach(d=>d.ex.forEach(e=>{ if(!f&&e.name===n) f=e; }));
+  return f?JSON.parse(JSON.stringify(f)):null; };
+const TRI_OLD="트라이셉스 익스텐션 머신", TRI_NEW="오버헤드 덤벨 트라이셉스 익스텐션";
+const PROGRAM_PATCHES={
+  /* 2026-08-17 — 카프레이즈 제거 · 삼두 장두 종목 교체 · 중둔근 추가.
+     근거는 PROGRAM.md 「설계 근거」에 있다. 되살리지 말 것. */
+  2(){
+    const touched=new Set(), days=PROG();
+    // ① 카프레이즈 전면 제거 (Day 2 · Day 4)
+    ["레그프레스 카프레이즈","시티드 카프레이즈"].forEach(n=>days.forEach(d=>{
+      const i=d.ex.findIndex(e=>e.name===n);
+      if(i>=0){ d.ex.splice(i,1); touched.add(d.n); } }));
+    // ② 삼두 장두 종목 교체 — 기록은 was 로 이어붙인다
+    const tri=fromDAYS(TRI_NEW);
+    let swapped=false;
+    if(tri) days.forEach(d=>{ const i=d.ex.findIndex(e=>e.name===TRI_OLD);
+      if(i>=0){ d.ex[i]=JSON.parse(JSON.stringify(tri)); touched.add(d.n); swapped=true; } });
+    // 없는 기구를 대체 후보로 계속 권하지 않는다
+    days.forEach(d=>d.ex.forEach(e=>(e.alts||[]).forEach(a=>{
+      if(a[0]===TRI_OLD){ a[0]=TRI_NEW; a[1]="장두를 늘린 자세"; } })));
+    /* 프로그램에서 옛 이름이 사라진 뒤에 불러야 moveRecord 가 키를 옮긴다
+       (다른 Day 에 남아 있으면 옮기지 않는 규칙이 있다). */
+    if(swapped) moveRecord(TRI_OLD,TRI_NEW);
+    // ③ 중둔근 자리 — 바이셉스 컬 앞에 넣어 Day 2 는 6종목 16세트를 유지한다
+    const abd=fromDAYS("힙 어브덕션 머신"), d2=days.find(d=>d.n===2);
+    if(abd&&d2&&!d2.ex.some(e=>e.name===abd.name)){
+      const at=d2.ex.findIndex(e=>e.name==="바이셉스 컬 머신");
+      d2.ex.splice(at<0?d2.ex.length:at,0,abd); touched.add(d2.n);
+    }
+    /* ④ 밤 러닝을 5km 고정으로. run 은 편집기에서 못 고치는 값이라 덮어써도
+       사용자 편집을 잃지 않는다 — 같은 이유로 DAYS 를 그대로 따라가면 된다.
+       종목 목록을 건드리지 않으므로 touched 에는 넣지 않는다 (드래프트가 멀쩡하다). */
+    days.forEach(d=>{ const src=DAYS.find(x=>x.n===d.n); if(src) d.run=src.run; });
+    return touched;
+  }
+};
+function patchProgram(){
+  const cur=program.progRev||1;
+  if(cur>=PROGRAM_REV) return new Set();
+  const touched=new Set();
+  let v=cur;
+  try{
+    while(v<PROGRAM_REV){ const f=PROGRAM_PATCHES[v+1]; if(!f) break;
+      (f()||[]).forEach(n=>touched.add(n)); v++; }
+  }catch(e){
+    banner(`프로그램 개정에 실패했습니다 (${e.message||e}). 종목 구성이 옛 상태로 남아 있습니다.`);
+    return new Set();
+  }
+  if(v===cur) return new Set();
+  program.progRev=v; program.rev++;
+  writeJSON(K.program,program).then(w=>{
+    if(!w.ok) banner(`바뀐 프로그램을 저장하지 못했습니다 (${w.err||"원인 미상"}). 앱을 다시 열면 다시 시도합니다.`);
+  });
+  return touched;
+}
+
 async function load(){
   probeStorage();
   migrate();
@@ -804,9 +880,19 @@ async function load(){
   idx.counts=idx.counts||{sessions:0,runs:0};
   idx.swapMemory=idx.swapMemory||{};
   await importLegacy();
+  const touched=patchProgram();          // idx 가 준비된 뒤에 — moveRecord 가 idx 를 쓴다
   curDay=nextDay();
   // 드래프트가 있으면 그때의 선택이 우선이다 — 되돌려둔 것을 기억이 다시 덮으면 안 된다
-  if(!restoreDraft()) seedSwaps();
+  let restored=restoreDraft();
+  /* 개정으로 종목 목록이 바뀐 Day 의 드래프트는 살릴 수 없다 — entries·swaps 가
+     배열 인덱스를 키로 잡아서 그대로 두면 입력값이 엉뚱한 종목에 가서 붙는다.
+     조용히 넘기지 않고 무엇을 비웠는지 알린다 (CLAUDE.md 원칙 3). */
+  if(restored&&touched.has(curDay)){
+    const n=curDay;
+    entries={}; swaps={}; blocks={}; clearSession(); clearDraft(); restored=false;
+    setTimeout(()=>banner(`프로그램이 바뀌어 진행 중이던 Day ${n} 의 입력을 비웠습니다 — 종목 구성이 달라져 그대로 두면 입력값이 다른 종목에 붙습니다.`,"warn"),0);
+  }
+  if(!restored) seedSwaps();
 }
 
 /* ── 자동 저장 (0-4 / SPEC 1-3) ──
@@ -1033,7 +1119,7 @@ const NEWDAY=()=>({n:0,title:"새 Day",sub:"",leg:false,
           ["트레드밀 걷기","경사 4% · 시속 5~6km",420],
           ["첫 종목 워밍업 세트","본세트 무게의 50%로 10회 × 2세트",0]],
   finish:{name:"천국의 계단",detail:"낮은 단계로 12분 · 대화 가능한 강도",sec:720,warn:false},
-  focus:"직접 추가한 Day 입니다. 종목을 채워주세요.",run:"6~7km 평소 페이스",ex:[]});
+  focus:"직접 추가한 Day 입니다. 종목을 채워주세요.",run:"5km 평소 페이스",ex:[]});
 async function edAddDay(){
   PROG().push(NEWDAY()); renumberDays();
   edDay=PROG().length; edForm=null;
