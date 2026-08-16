@@ -363,6 +363,119 @@ button.prev .more{color:var(--brass);margin-left:6px}
 .coachbtn.go{background:var(--brass);color:#2B2836;border-color:var(--brass)}
 .coachbtn.danger{color:var(--alarm);border-color:rgba(228,100,62,.45)}
 .ednote{font-size:12.5px;color:var(--brass);line-height:1.5;margin-top:10px;font-weight:600}
+
+/* ── 러닝 (6단계) ──
+   축 색은 --slate 다. 웨이트가 --brass 이므로 두 축이 색으로 구분된다.
+   .runline 이 이미 이 색을 쓰고 있어 새 색을 만들지 않았다. */
+#wtaxis[hidden],#runaxis[hidden]{display:none}
+.axis{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--panel);
+  border:1px solid var(--line);border-radius:13px;padding:5px;margin-bottom:13px}
+.axis button{min-height:46px;border:0;border-radius:9px;background:transparent;cursor:pointer;
+  font-family:var(--sans);font-size:14.5px;font-weight:800;color:var(--faint);letter-spacing:-.01em}
+.axis button[aria-pressed="true"]{background:var(--panel2);color:var(--chalk);
+  box-shadow:inset 0 0 0 1px var(--line)}
+.axis button[data-ax="run"][aria-pressed="true"]{color:var(--slate);
+  box-shadow:inset 0 0 0 1px rgba(132,150,174,.5)}
+.axis button:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+
+.week{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:17px 16px;margin-bottom:13px}
+.wkhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.wknum{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--faint);font-weight:700}
+.wkbig{font-family:var(--mono);font-size:34px;font-weight:800;letter-spacing:-.045em;line-height:1;
+  color:var(--slate);font-variant-numeric:tabular-nums;margin-top:9px}
+.wkbig small{font-size:15px;font-weight:700;color:var(--faint);letter-spacing:0;margin-left:3px}
+.wkbar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:14px 0 9px}
+.wkbar i{display:block;height:100%;background:var(--slate);border-radius:3px;
+  transition:width .35s cubic-bezier(.2,.8,.3,1)}
+.wkfoot{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);
+  font-size:11.5px;color:var(--faint);font-weight:600}
+.wkfoot b{color:var(--dim)}
+
+.addrun{width:100%;min-height:54px;border:1px solid rgba(132,150,174,.45);border-radius:13px;
+  background:rgba(132,150,174,.14);color:var(--chalk);font-family:var(--sans);font-size:15.5px;
+  font-weight:800;cursor:pointer;letter-spacing:-.01em;margin-bottom:13px}
+.addrun:active{background:rgba(132,150,174,.24)}
+.addrun:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+
+.runform{background:var(--panel);border:1px solid var(--slate);border-radius:16px;padding:17px 15px 15px;
+  display:flex;flex-direction:column;gap:14px;margin-bottom:13px}
+.runform[hidden]{display:none}
+.frow{display:grid;grid-template-columns:76px 1fr;gap:11px;align-items:center}
+.frow > label{font-size:14px;color:var(--dim);font-weight:700}
+.bigin{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:11px;
+  color:var(--chalk);font-family:var(--mono);font-size:26px;font-weight:700;text-align:center;
+  padding:11px 6px;min-height:58px;font-variant-numeric:tabular-nums}
+.bigin:focus{outline:none;border-color:var(--slate);background:#46415A}
+.bigin.ghost{color:var(--faint);font-style:italic}
+.bigin.bad{border-color:var(--alarm)}
+.unit{display:flex;align-items:center;gap:9px}
+.unit .bigin{flex:1;min-width:0}
+.unit span{font-family:var(--mono);font-size:15px;color:var(--faint);font-weight:700;flex-shrink:0}
+/* 페이스는 입력받지도 저장하지도 않는다 — 거리·시간에서 계산해 표시만 한다 (SCHEMA 「러닝」) */
+.pace{display:flex;align-items:baseline;justify-content:center;gap:9px;padding:13px;
+  background:var(--panel2);border:1px dashed var(--line);border-radius:11px}
+.pace .v{font-family:var(--mono);font-size:29px;font-weight:800;letter-spacing:-.04em;
+  color:var(--slate);font-variant-numeric:tabular-nums}
+.pace .v.none{color:var(--faint);font-size:20px}
+.pace .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{flex:1;min-width:70px;min-height:48px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);color:var(--dim);font-family:var(--sans);font-size:13.5px;font-weight:700;
+  cursor:pointer;padding:0 6px}
+.chip[aria-pressed="true"]{background:var(--slate);border-color:var(--slate);color:#2B2836}
+.chip:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+details.more{border-top:1px solid var(--line);padding-top:12px}
+details.more summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;
+  justify-content:space-between;font-size:13.5px;color:var(--faint);font-weight:700}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:"+";font-family:var(--mono);font-size:18px;color:var(--faint)}
+details.more[open] summary::after{content:"\2212"}
+details.more summary:focus-visible{outline:2px solid var(--slate);outline-offset:3px;border-radius:5px}
+.morebody{display:flex;flex-direction:column;gap:11px;padding-top:6px}
+/* 입력 숫자는 20px 이상 — 땀 묻은 손과 팔 뻗은 거리를 가정한다 (CLAUDE.md 원칙 4) */
+.smallin{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  color:var(--chalk);font-family:var(--mono);font-size:20px;font-weight:700;text-align:center;
+  padding:10px;min-height:48px;font-variant-numeric:tabular-nums}
+.smallin.txt{font-family:var(--sans);font-size:15px;text-align:left;font-weight:400}
+.smallin:focus{outline:none;border-color:var(--slate)}
+.smallin::-webkit-outer-spin-button,.smallin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.smallin[type=number]{-moz-appearance:textfield}
+.runsave{width:100%;min-height:54px;border:0;border-radius:12px;background:var(--slate);color:#2B2836;
+  font-family:var(--sans);font-size:16px;font-weight:800;cursor:pointer;letter-spacing:-.01em}
+.runsave:disabled{background:var(--panel2);color:var(--faint);cursor:default}
+.runcancel{width:100%;min-height:48px;border:1px solid var(--line);border-radius:11px;background:transparent;
+  color:var(--dim);font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer}
+.runerr{color:var(--alarm);font-size:13px;line-height:1.5}
+.runerr:empty{display:none}
+
+.runlist{display:flex;flex-direction:column;gap:9px}
+.wksep{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:800;margin-top:5px}
+.wksep::after{content:"";flex:1;height:1px;background:var(--line)}
+.run{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 14px;
+  border-left:3px solid var(--slate);display:flex;flex-direction:column;gap:6px}
+.rtop{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rdate{font-family:var(--mono);font-size:12.5px;color:var(--faint);font-weight:700;min-width:66px}
+.rkm{font-family:var(--mono);font-size:19px;font-weight:800;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums}
+.rkm i{font-style:normal;font-size:12px;color:var(--faint)}
+.rtime{font-family:var(--mono);font-size:14px;color:var(--dim);font-weight:600;
+  font-variant-numeric:tabular-nums}
+.rpace{font-family:var(--mono);font-size:14px;color:var(--slate);font-weight:700;margin-left:auto;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.rtag{font-family:var(--mono);font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border-radius:20px;background:rgba(132,150,174,.16);color:var(--slate);
+  border:1px solid rgba(132,150,174,.34)}
+.rtag.long{background:rgba(224,168,60,.16);color:var(--brass);border-color:rgba(224,168,60,.4)}
+.rtag.int{background:rgba(228,100,62,.14);color:var(--alarm);border-color:rgba(228,100,62,.4)}
+.rmeta{font-family:var(--mono);font-size:11.5px;color:var(--faint);font-weight:600;
+  display:flex;gap:12px;flex-wrap:wrap}
+.rnote{font-size:12.5px;color:var(--dim);word-break:break-all}
+.runmore{width:100%;min-height:48px;margin-top:4px;background:transparent;border:1px solid var(--line);
+  border-radius:11px;color:var(--dim);font-family:var(--sans);font-size:13.5px;font-weight:700;cursor:pointer}
+.runempty{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 16px;
+  text-align:center;font-size:13.5px;color:var(--faint)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -370,6 +483,16 @@ button.prev .more{color:var(--brass);margin-left:6px}
 <div class="wrap">
   <div class="top"><span class="eyebrow">Day 순환 프로그램</span><span class="date" id="today"></span></div>
   <div class="banner" id="banner" style="display:none"></div>
+
+  <!-- 축 전환 (SPEC 6단계) — 웨이트는 Day 순환, 러닝은 날짜별 독립 기록이다.
+       앱을 열면 언제나 웨이트다. 선택을 저장하지 않으므로 헬스장 동선의 탭 수는 0 증가한다. -->
+  <div class="axis" role="group" aria-label="축 전환">
+    <button type="button" data-ax="wt" aria-pressed="true">웨이트</button>
+    <button type="button" data-ax="run" aria-pressed="false">러닝</button>
+  </div>
+
+  <!-- ⚠ 아래 #wtaxis 는 감싸기만 한 것이다. 안의 요소는 id·순서·핸들러 모두 그대로다 -->
+  <div id="wtaxis">
   <details class="restore" id="restorebox">
     <summary>지난 기록 불러오기 · 백업 텍스트 붙여넣기</summary>
     <button class="coachbtn" id="clipload">클립보드에서 한 번에 불러오기</button>
@@ -402,6 +525,71 @@ button.prev .more{color:var(--brass);margin-left:6px}
     <button class="coachbtn" id="exportbtn">전체 기록 텍스트 만들기</button>
     <div id="backup" style="display:none"></div>
   </details>
+  </div><!-- /#wtaxis -->
+
+  <!-- ── 러닝 축 (SPEC 6단계) ──
+       거리·시간 모두 숫자만 친다. 소수점도 콜론도 치지 않는다 (SCHEMA 「입력 형식」).
+       그래서 inputmode 가 decimal 이 아니라 numeric 이다 — 기호 키가 필요 없어진다.
+       입력 규칙 안내(힌트) 줄은 두지 않는다. 혼자 쓰는 앱이다. -->
+  <section id="runaxis" hidden>
+    <section class="week">
+      <div class="wkhead"><span class="wknum" id="wkrange">—</span><span class="wknum" id="wkgoal">목표 25km</span></div>
+      <div class="wkbig"><span id="wkkm">0.0</span><small>km</small></div>
+      <div class="wkbar"><i id="wkfill" style="width:0%"></i></div>
+      <div class="wkfoot">
+        <span><b id="wklabel">—</b> · <b id="wkruns">0회</b></span>
+        <span id="lastwk"></span>
+      </div>
+    </section>
+
+    <button class="addrun" type="button" id="addrun">+ 오늘 러닝 기록</button>
+
+    <form class="runform" id="runform" hidden>
+      <div class="frow">
+        <label for="runkm">거리</label>
+        <div class="unit">
+          <input class="bigin ghost" type="text" id="runkm" inputmode="numeric" autocomplete="off"
+                 maxlength="6" value="5.00" aria-label="거리 킬로미터">
+          <span>km</span>
+        </div>
+      </div>
+      <div class="frow">
+        <label for="rundur">시간</label>
+        <div class="unit">
+          <input class="bigin" type="text" id="rundur" inputmode="numeric" autocomplete="off"
+                 maxlength="7" placeholder="0:00" aria-label="소요 시간">
+        </div>
+      </div>
+      <div class="pace"><span class="v none" id="runpace">—</span><span class="k">페이스 · 자동</span></div>
+      <div class="chips" role="group" aria-label="러닝 종류">
+        <button class="chip" type="button" data-rtype="easy" aria-pressed="true">이지</button>
+        <button class="chip" type="button" data-rtype="normal" aria-pressed="false">평소</button>
+        <button class="chip" type="button" data-rtype="long" aria-pressed="false">롱런</button>
+        <button class="chip" type="button" data-rtype="interval" aria-pressed="false">인터벌</button>
+      </div>
+      <details class="more">
+        <summary>심박 · 케이던스 · 메모</summary>
+        <div class="morebody">
+          <div class="frow"><label for="runhr">평균 심박</label>
+            <input class="smallin" type="number" id="runhr" inputmode="numeric" min="60" max="220"
+                   placeholder="bpm" aria-label="평균 심박"></div>
+          <div class="frow"><label for="runcad">케이던스</label>
+            <input class="smallin" type="number" id="runcad" inputmode="numeric" min="100" max="240"
+                   placeholder="spm" aria-label="평균 케이던스"></div>
+          <div class="frow"><label for="runnote">메모</label>
+            <input class="smallin txt" type="text" id="runnote" maxlength="40"
+                   placeholder="다리 무거웠음" aria-label="메모"></div>
+        </div>
+      </details>
+      <div class="runerr" id="runerr"></div>
+      <button class="runsave" type="submit" id="runsave" disabled>저장</button>
+      <button class="runcancel" type="button" id="runcancel">닫기</button>
+    </form>
+
+    <div class="runlist" id="runlist"></div>
+    <div class="saved" id="runsaved"></div>
+  </section>
+
   <div class="env" id="env"></div>
 </div>
 
@@ -727,7 +915,14 @@ function migrateKey(key){
   try{ DB.set(key+".bak1", JSON.stringify(o)); }              // 변환 전에 반드시 백업
   catch(e){ lastErr="백업 실패 — "+(e.message||e); return false; }
   try{
-    while(v<SCHEMA_VER){ const f=MIGRATIONS[v+1]; if(!f) break; cur=f(cur); v++; }
+    /* 변환 함수가 없으면 조용히 넘어가지 않는다 (SCHEMA 「조용히 넘어가지 않는다」).
+       예전에는 break 후 schema 를 안 올린 채 true 를 반환해 배너도 안 떴다 —
+       옛 구조를 새 코드가 읽는 상태가 아무 표시 없이 계속됐을 것이다. */
+    while(v<SCHEMA_VER){
+      const f=MIGRATIONS[v+1];
+      if(!f){ lastErr=`schema ${v} → ${v+1} 변환이 없습니다`; return false; }
+      cur=f(cur); v++;
+    }
     cur.schema=v; DB.set(key, JSON.stringify(cur)); return true;
   }catch(e){
     try{ DB.set(key, JSON.stringify(o)); }catch(_){}          // 실패하면 원본 복구
@@ -878,9 +1073,12 @@ async function load(){
   idx.lastByExercise=idx.lastByExercise||{};
   idx.months=idx.months||[];
   idx.counts=idx.counts||{sessions:0,runs:0};
+  if(typeof idx.counts.runs!=="number") idx.counts.runs=0;   // v10 이전 폰에는 이 자리가 비어 있다
+  idx.recentRunWeeks=Array.isArray(idx.recentRunWeeks)?idx.recentRunWeeks:[];
   idx.swapMemory=idx.swapMemory||{};
   await importLegacy();
   const touched=patchProgram();          // idx 가 준비된 뒤에 — moveRecord 가 idx 를 쓴다
+  pruneSwapMemory();                     // 개정이 종목을 뺐을 수 있다. seedSwaps 보다 먼저 돌아야 한다
   curDay=nextDay();
   // 드래프트가 있으면 그때의 선택이 우선이다 — 되돌려둔 것을 기억이 다시 덮으면 안 된다
   let restored=restoreDraft();
@@ -1020,8 +1218,26 @@ async function saveProgram(){
   if(!r.ok) banner(`프로그램을 저장하지 못했습니다 (${r.err||"원인 미상"}). 앱을 다시 열면 편집 내용이 사라집니다 — 저장 공간을 확보하고 다시 시도해주세요.`);
   return r.ok;
 }
+/* 대체 기억의 고아 키를 지운다 (7회차 「고치지 않은 것」).
+   자리 교체·이름 변경·종목 제거 뒤에도 옛 이름의 기억이 남는데, 화면엔 안 새지만
+   같은 이름을 나중에 다시 프로그램에 넣으면 옛 대체가 되살아난다 (재현 확인).
+   기록(lastByExercise)은 건드리지 않는다 — 지우는 것은 "그 자리의 마지막 대체"뿐이다. */
+function pruneSwapMemory(){
+  const names=new Set();
+  PROG().forEach(d=>d.ex.forEach(e=>names.add(e.name)));
+  let n=0;
+  Object.keys(idx.swapMemory||{}).forEach(k=>{ if(!names.has(k)){ delete idx.swapMemory[k]; n++; } });
+  if(n){
+    idx.rev++;
+    writeJSON(K.index,idx).then(w=>{
+      if(!w.ok) banner(`대체 기억 정리를 저장하지 못했습니다 (${w.err||"원인 미상"}). 기록에는 영향이 없습니다.`);
+    });
+  }
+  return n;
+}
 function afterEdit(){
   renumberDays();
+  pruneSwapMemory();          // 종목을 지우거나 이름을 바꾼 직후가 고아가 생기는 자리다
   const len=PROG().length;
   if(curDay>len) curDay=len;
   if(edDay>len) edDay=len;
@@ -1733,13 +1949,18 @@ function applyPick(i,mode,name,srcEx){
   base.name=name;
   if(isAdded(i)){ base.toProgram=todayEx()[i].toProgram; sessionAdds[i-D().ex.length]=base; }
   else D().ex[i]=base;
-  // 자리에 다른 종목이 들어왔다. 이 자리의 입력과 오늘 값은 전부 의미가 없어진다
-  delete entries[i]; delete swaps[i]; delete sessionSets[i]; delete sessionSkip[i];
+  /* 자리에 다른 종목이 들어왔다. 이 자리의 입력과 오늘 값은 전부 의미가 없어진다.
+     ⚠ 인덱스를 키로 쓰는 세션 상태는 다섯이다 — rirs 를 빠뜨리면 옛 종목의 RIR 이
+     새 종목에 그대로 붙어 저장된다 (promoteAdds 와 같은 종류. 10회차에 발견). */
+  delete entries[i]; delete swaps[i]; delete sessionSets[i]; delete sessionSkip[i]; delete rirs[i];
   pickMode=null; openSheet=-1;
   saveDraft(); stopRest(); sheetSaved();
 }
 // 시트에서 프로그램을 고친 뒤 — 총정리·브리핑·5단계 편집기의 세트 수까지 따라가야 한다
-async function sheetSaved(){ await saveProgram(); renderOverview(); renderBrief(); render(); renderEditor(); }
+async function sheetSaved(){
+  pruneSwapMemory();            // 자리 교체로 사라진 종목의 대체 기억을 남기지 않는다
+  await saveProgram(); renderOverview(); renderBrief(); render(); renderEditor();
+}
 
 /* 건너뛴 종목은 분모에서 뺀다. 안 그러면 다 하고도 진행률이 100% 에 닿지 못한다 */
 const totalSets=()=>todayEx().reduce((a,e,i)=>a+(sessionSkip[i]?0:setsOf(i)),0);
@@ -1933,10 +2154,21 @@ function programLines(){
   });
   return out;
 }
+/* 러닝 한 줄 (SCHEMA 「백업 내보내기」 예시 형식).
+   ⚠ 파서 안전 — `kg x` 패턴이 없어 자동으로 건너뛰어진다 (SCHEMA 「파싱 규칙」).
+   `km` 이지 `kg` 가 아니다. 이 성질을 깨뜨리지 말 것. */
+const runLine=r=>`[${r.date}] 러닝: ${(+r.km).toFixed(2)}km ${hms(+r.sec)} ${mmss(paceOf(+r.km,+r.sec))}/km ${RTYPE[r.type]||r.type||""}`
+  +(r.hr?` · 심박 ${r.hr}`:"")+(r.cadence?` · 케이던스 ${r.cadence}`:"")+(r.note?` · ${r.note}`:"");
 function logText(){
   const lines=["WORKOUT-EXPORT v2","",...programLines(),"","--- 기록 ---"];
   const all=allSessions();
-  if(all.length) all.forEach((s,i)=>{ if(i) lines.push(""); lines.push(...sessionLines(s)); });
+  /* 러닝도 백업에 담는다. 7단계 전까지 텍스트가 유일한 복구 수단인데
+     러닝만 빠져 있으면 폰이 죽었을 때 러닝 이력이 통째로 사라진다 (CLAUDE.md 원칙 3).
+     세션과 날짜순으로 섞어 그날 무엇을 했는지 한 자리에서 보이게 한다. */
+  const items=all.map(s=>({date:s.date,ls:()=>sessionLines(s)}))
+    .concat(allRuns().map(r=>({date:r.date,ls:()=>[runLine(r)]})))
+    .sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+  if(items.length) items.forEach((it,i)=>{ if(i) lines.push(""); lines.push(...it.ls()); });
   else lines.push("(아직 저장된 세션이 없습니다)");
   /* 「누적 기록」 섹션은 없앴다. 「기록」이 이미 같은 내용을 담고 있어 길이만 두 배가 되고,
      종목당 무게를 하나만 담아 세트별로 무게를 바꾼 날의 기록이 뭉개졌다.
@@ -1975,19 +2207,28 @@ function parseBackup(text){
       if(firstDay===null) firstDay=+h[2];
       const dt=h[1].trim(); date=/^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : null;
       return; }
+    /* 기록 줄은 언제나 `종목명: ...` 이고 `[` 로 시작하지 않는다.
+       `[` 로 시작하는 줄은 헤더(위에서 처리)이거나 러닝 줄이다. 여기서 끊지 않으면
+       러닝 메모에 "5kg x 10" 같은 글자가 들어갔을 때 "[날짜] 러닝" 이라는
+       엉뚱한 종목이 lastByExercise 에 생긴다. */
+    if(line.startsWith("[")) return;
     const i=line.indexOf(":");
     if(i<1) return;
     const name=line.slice(0,i).trim();
     if(got[name]) return;                              // 먼저 나온 것(=최신)이 이긴다
-    const pairs=[...line.slice(i+1).matchAll(/(\d+(?:\.\d+)?)\s*kg\s*x\s*(\d+)/g)];
+    const tail=line.slice(i+1);
+    const pairs=[...tail.matchAll(/(\d+(?:\.\d+)?)\s*kg\s*x\s*(\d+)/g)];
     if(!pairs.length) return;
     const sets=pairs.map(p=>({w:+p[1], r:+p[2]}));     // 세트별 무게를 그대로 살린다
     const reps=sets.map(v=>v.r);
+    // RIR 은 텍스트에 `· 한계였음` 으로 나가 있는데 예전에는 되읽지 않아 왕복에서 손실됐다
+    let rir=null;
+    Object.keys(RIRTXT).forEach(k=>{ if(tail.includes(RIRTXT[k])) rir=k; });
     const t=planTop[name];
     /* ⚠ === 가 아니라 >= 다. 저장 경로(allTop)와 같은 규칙이어야 한다 —
        계획 3세트인데 4세트를 전부 상단으로 채운 날을 백업에서 복원하면
        === 에서는 증량 제안이 사라진다. 더 했는데 벌을 받는 셈이다. */
-    got[name]={w:sets[sets.length-1].w, reps, sets, rir:null, date,
+    got[name]={w:sets[sets.length-1].w, reps, sets, rir, date,
       allTop: !!(t && reps.length>=t[1] && reps.every(r=>r>=t[0]))};
   });
   Object.entries(got).forEach(([name,v])=>{
@@ -2058,6 +2299,18 @@ function coachText(rec){
       return ls;
     }):["이전 기록 없음"]),
     ``,
+    /* [최근 러닝 3회] — SCHEMA 「코칭 프롬프트」 계약의 마지막 항목이다 (6단계).
+       이게 없으면 하체 정체의 원인을 영영 무게 문제로만 보게 된다.
+       ⚠ `km` 이지 `kg x` 가 아니라서 백업 파서가 이 줄을 건드리지 않는다. 깨뜨리지 말 것. */
+    `[최근 러닝 3회]`,
+    ...(()=>{ const l=allRuns().slice(0,3);
+      return l.length?l.map(r=>`[${r.date}] ${(+r.km).toFixed(2)}km ${hms(+r.sec)} ${mmss(paceOf(+r.km,+r.sec))}/km ${RTYPE[r.type]||r.type||""}`
+        +(r.hr?` · 심박 ${r.hr}`:"")):["러닝 기록 없음"]; })(),
+    ``,
+    `[이번 주 러닝]`,
+    (()=>{ const s=weekStats(isoMonday(rec.date));
+      return `${s.km.toFixed(1)}km · ${s.n}회 (목표 ${RUN_WEEK_TARGET}km)`; })(),
+    ``,
     `[진행 상황]`,
     (weekNo()?`${weekNo()}주차 · `:"") +
       `${idx.rotation.cycles}바퀴 · 누적 ${idx.counts.sessions}세션` +
@@ -2082,6 +2335,221 @@ function showCoach(rec){
     <div class="bakhint">복사해서 Claude 앱에 붙여넣으세요.</div>
     <textarea id="coachtext" readonly rows="6">${esc(coachText(rec))}</textarea>`;
   bindCopy("coachcopy","coachtext");
+}
+
+/* ══ 러닝 (SPEC 6단계 · SCHEMA 「러닝」·「입력 형식」) ══════════════════
+   웨이트는 Day 순환이지만 러닝은 날짜별 독립 기록이다. 같은 날 둘 다 있을 수 있다.
+   애플 건강 연동은 하지 않는다 — 걷기 거리와 종일 심박이 섞여 데이터 품질이 떨어진다.
+   검토 후 내린 결정이니 되살리지 말 것 (CLAUDE.md 원칙 3-1). */
+const RUN_WEEK_TARGET=25;               // PROGRAM.md 의 주 25km. 편집 화면은 만들지 않는다
+const RTYPE={easy:"이지",normal:"평소",long:"롱런",interval:"인터벌"};
+const RCLASS={easy:"",normal:"",long:"long",interval:"int"};
+const RUN_PAGE=30;                      // 1년이면 260개다. 한 번에 다 그리면 느려진다
+let runType="easy", runShown=RUN_PAGE;
+
+const dateOf=iso=>{ const p=String(iso).split("-"); return new Date(+p[0],+p[1]-1,+p[2]); };
+/* ⚠ 주는 ISO 8601 — 월요일 시작, 일요일 끝이다.
+   getDay() 는 일요일이 0 이라 그대로 쓰면 하루 어긋난다. (getDay()+6)%7 로 월=0 을 만든다. */
+function isoMonday(iso){ const d=dateOf(iso); d.setDate(d.getDate()-((d.getDay()+6)%7)); return localDate(d); }
+function isoWeek(iso){
+  const p=String(iso).split("-");
+  const t=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
+  t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7)+3);          // 그 주의 목요일이 해를 정한다
+  const f=new Date(Date.UTC(t.getUTCFullYear(),0,4));            // 1월 4일은 언제나 1주차
+  f.setUTCDate(f.getUTCDate()-((f.getUTCDay()+6)%7)+3);
+  return `${t.getUTCFullYear()}-W${pad(1+Math.round((t-f)/604800000))}`;
+}
+const weekEnd=mon=>{ const e=dateOf(mon); e.setDate(e.getDate()+6); return localDate(e); };
+/* "2026-W34" 만으로는 어디부터 어디까지인지 안 보인다. 범위를 날짜로 적는다 */
+function weekRange(mon){
+  const s=dateOf(mon), e=dateOf(weekEnd(mon));
+  return `${pad(s.getMonth()+1)}.${pad(s.getDate())} ${DOW[s.getDay()]}`
+       + ` ~ ${pad(e.getMonth()+1)}.${pad(e.getDate())} ${DOW[e.getDay()]}`;
+}
+const dowOf=iso=>DOW[dateOf(iso).getDay()];
+// ⚠ 나머지를 먼저 반올림하면 59.7초가 "5:60" 이 된다. 총초를 먼저 정수로 만든다
+const mmss=sec=>{ const t=Math.round(sec); return `${Math.floor(t/60)}:${pad(t%60)}`; };
+function hms(sec){ const t=Math.round(sec), h=Math.floor(t/3600);
+  return h?`${h}:${pad(Math.floor(t%3600/60))}:${pad(t%60)}`:`${Math.floor(t/60)}:${pad(t%60)}`; }
+// 페이스는 입력받지도 저장하지도 않는다. sec/km 로 언제든 계산된다 (SCHEMA 「러닝」)
+const paceOf=(km,sec)=>(km>0&&sec>0)?sec/km:null;
+
+function allRuns(){
+  return (idx.months||[]).flatMap(m=>getMonth(m).runs||[])
+    .sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);          // 최신이 맨 위
+}
+const runsInWeek=mon=>{ const e=weekEnd(mon); return allRuns().filter(r=>r.date>=mon&&r.date<=e); };
+function weekStats(mon){
+  const l=runsInWeek(mon);
+  return {km:l.reduce((a,r)=>a+(+r.km||0),0), n:l.length};
+}
+/* 주간 집계를 index 에 캐시한다 (SCHEMA index.json 「recentRunWeeks」).
+   주가 달을 걸치면 월 파일 두 개를 보게 되는데 getMonth 가 캐시라 비용은 없다.
+   이건 캐시일 뿐이고 진실은 언제나 월 파일의 runs[] 다. */
+function recalcRunWeek(dateIso){
+  const mon=isoMonday(dateIso), week=isoWeek(dateIso), s=weekStats(mon);
+  const arr=(idx.recentRunWeeks||[]).filter(x=>x&&x.week!==week);
+  if(s.n) arr.push({week, km:Math.round(s.km*10)/10, runs:s.n});
+  arr.sort((a,b)=>a.week<b.week?1:-1);
+  idx.recentRunWeeks=arr.slice(0,8);
+}
+
+function runCard(r){
+  const p=paceOf(+r.km,+r.sec);
+  const meta=[r.hr?`♥ ${r.hr}`:"", r.cadence?`🦶 ${r.cadence}`:""].filter(Boolean);
+  return `<article class="run">
+    <div class="rtop">
+      <span class="rdate">${esc(String(r.date).slice(5).replace("-","."))} (${dowOf(r.date)})</span>
+      <span class="rkm n">${(+r.km).toFixed(2)}<i>km</i></span>
+      <span class="rtime">${hms(+r.sec)}</span>
+      <span class="rtag ${RCLASS[r.type]||""}">${esc(RTYPE[r.type]||r.type||"")}</span>
+      ${p?`<span class="rpace">${mmss(p)}/km</span>`:""}
+    </div>
+    ${meta.length?`<div class="rmeta">${meta.map(x=>`<span>${x}</span>`).join("")}</div>`:""}
+    ${r.note?`<div class="rnote">${esc(r.note)}</div>`:""}
+  </article>`;
+}
+function renderRun(){
+  const mon=isoMonday(today()), cur=weekStats(mon);
+  const pm=dateOf(mon); pm.setDate(pm.getDate()-7);
+  const prev=weekStats(localDate(pm));
+  $("wkrange").textContent=weekRange(mon);
+  $("wkgoal").textContent=`목표 ${RUN_WEEK_TARGET}km`;
+  $("wkkm").textContent=cur.km.toFixed(1);
+  $("wkruns").textContent=`${cur.n}회`;
+  $("wkfill").style.width=Math.min(100,cur.km/RUN_WEEK_TARGET*100)+"%";
+  $("wklabel").textContent=isoWeek(today());
+  $("lastwk").innerHTML=prev.n?`지난주 <b>${prev.km.toFixed(1)}km · ${prev.n}회</b>`:"";
+
+  const all=allRuns();
+  if(!all.length){ $("runlist").innerHTML=`<div class="runempty">아직 러닝 기록이 없습니다</div>`; return; }
+  // 주 경계에서 가른다 — 일요일에 뛴 것이 지난주로 가는 게 눈에 보여야 한다
+  let html="", last=null;
+  all.slice(0,runShown).forEach(r=>{
+    const m=isoMonday(r.date);
+    if(m!==last){ last=m; html+=`<div class="wksep">${m===mon?"이번 주":isoWeek(r.date)}</div>`; }
+    html+=runCard(r);
+  });
+  if(all.length>runShown) html+=`<button class="runmore" type="button" id="runmore">이전 기록 더 보기 (${all.length-runShown})</button>`;
+  $("runlist").innerHTML=html;
+  const mb=$("runmore");
+  if(mb) mb.addEventListener("click",()=>{ runShown+=RUN_PAGE; renderRun(); });
+}
+
+/* ── 입력 — 소수점도 콜론도 치지 않는다 (SCHEMA 「입력 형식」) ──
+   숫자만 받아 뒤 2자리를 소수(초)로 민다. 533 → 5.33 · 2631 → 26:31.
+   그래서 inputmode 가 numeric 이다 — iOS 숫자 키패드에 기호 키가 없어도 상관없어진다.
+   6회차에 하이픈으로 데인 자리와 같은 종류인데, 이번엔 그 성질을 피하지 않고 이용한다. */
+function shiftFmt(digits,sepChar){
+  let d=digits.replace(/^0+/,""); if(!d) d="0";
+  while(d.length<3) d="0"+d;
+  return d.slice(0,-2)+sepChar+d.slice(-2);
+}
+function runDurSec(){
+  const p=$("rundur").value.split(":");
+  if(p.length!==2) return 0;
+  return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0);   // 분:초로만 받는다. 표시할 때만 h 를 푼다
+}
+const runBadSec=()=>{ const p=$("rundur").value.split(":");
+  return p.length===2 && (parseInt(p[1],10)||0)>59; };
+function bindDigits(el,max,sep){
+  el.addEventListener("input",()=>{
+    const d=el.value.replace(/\D/g,"").slice(0,max);
+    // 다 지우면 0.00 이 아니라 빈칸이어야 한다 — 안 그러면 다시 칠 수가 없다
+    el.value=(d&&+d>0)?shiftFmt(d,sep):"";
+    el.classList.remove("ghost");
+    const e=el.value.length;
+    try{ el.setSelectionRange(e,e); }catch(_){}
+    runRecalc();
+  });
+}
+function runRecalc(){
+  const km=parseFloat($("runkm").value)||0;
+  const bad=runBadSec(), sec=bad?0:runDurSec(), p=paceOf(km,sec);
+  const el=$("runpace");
+  if(p){ el.textContent=mmss(p)+"/km"; el.className="v"; }
+  else { el.textContent="—"; el.className="v none"; }
+  $("rundur").classList.toggle("bad",bad);
+  $("runerr").textContent=bad?"초는 59 까지입니다. 1시간이 넘으면 분으로 이어 치세요 — 6218 → 62:18":"";
+  $("runsave").disabled=!(km>0&&sec>0);
+}
+function resetRunForm(){
+  // 프리필은 5.00 고정이고 회색이다. 「직전 값」이 아니다 — 밤 러닝이 5km 고정이라
+  // 롱런 다음 날 10.9 가 떠서 매번 지워야 했다 (2026-08-17 정정)
+  $("runkm").value="5.00"; $("runkm").classList.add("ghost");
+  $("rundur").value=""; $("rundur").classList.remove("bad");
+  $("runhr").value=""; $("runcad").value=""; $("runnote").value="";
+  runType="easy";
+  document.querySelectorAll("#runform .chip").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.rtype==="easy")));
+  runRecalc();
+}
+function openRunForm(on){
+  $("runform").hidden=!on;
+  $("addrun").textContent=on?"− 닫기":"+ 오늘 러닝 기록";
+  if(on){ resetRunForm(); $("rundur").focus(); }
+}
+
+function bindRun(){
+  bindDigits($("runkm"),4,".");        // 최대 99.99
+  bindDigits($("rundur"),5,":");       // 최대 999:59
+  $("runkm").addEventListener("focus",()=>{ $("runkm").classList.remove("ghost"); $("runkm").select(); });
+  $("addrun").addEventListener("click",()=>openRunForm($("runform").hidden));
+  $("runcancel").addEventListener("click",()=>openRunForm(false));
+  document.querySelectorAll("#runform .chip").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll("#runform .chip").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+    runType=b.dataset.rtype;
+  }));
+  $("runform").addEventListener("submit",saveRun);
+  document.querySelectorAll(".axis button").forEach(b=>b.addEventListener("click",()=>setAxis(b.dataset.ax)));
+}
+async function saveRun(e){
+  e.preventDefault();
+  const km=parseFloat($("runkm").value), sec=runDurSec();
+  if(!(km>=0.1&&km<100)){ $("runerr").textContent="거리는 0.1 ~ 99.99km 사이로 입력해주세요."; return; }
+  if(runBadSec()){ $("runerr").textContent="초는 59 까지입니다 — 6218 → 62:18"; return; }
+  if(!(sec>0)){ $("runerr").textContent="시간을 입력해주세요."; return; }
+  const date=today(), m=monthOf(date), mo=getMonth(m);
+  const hr=parseInt($("runhr").value,10), cad=parseInt($("runcad").value,10);
+  // 시각은 어디에도 남기지 않는다 — id 는 날짜 + 4자리 무작위다 (SCHEMA 「시각을 저장하지 않는다」)
+  const rec={id:newId("r",date), date, km:Math.round(km*100)/100, sec, type:runType,
+             hr:hr>0?hr:null, cadence:cad>0?cad:null, note:($("runnote").value||"").trim(), rev:1};
+  mo.runs=mo.runs||[];
+  mo.runs.push(rec);
+  mo.runs.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  const hadMonth=idx.months.includes(m);
+  if(!hadMonth){ idx.months.push(m); idx.months.sort(); }
+  idx.counts.runs=(idx.counts.runs||0)+1;
+  recalcRunWeek(date);
+  idx.rev++;
+
+  const r1=await writeJSON(K.month(m),mo);
+  if(!r1.ok){
+    // 조용히 넘기지 않는다 (CLAUDE.md 원칙 3). 화면에만 남은 기록을 만들지 않는다
+    mo.runs=mo.runs.filter(x=>x.id!==rec.id);
+    if(!hadMonth) idx.months=idx.months.filter(x=>x!==m);
+    idx.counts.runs--; recalcRunWeek(date);
+    $("runsaved").innerHTML=`<span class="err">저장 실패 — ${esc(r1.err||"원인 미상")}<br>기록되지 않았습니다. 저장 공간을 확보하고 다시 시도해주세요.</span>`;
+    return;
+  }
+  const r2=await writeJSON(K.index,idx);
+  openRunForm(false); runShown=RUN_PAGE; renderRun();
+  if(r2.ok){
+    $("runsaved").className="saved";
+    $("runsaved").textContent=`저장됨 · ${date} ${rec.km.toFixed(2)}km ${hms(sec)} ${mmss(paceOf(rec.km,sec))}/km`;
+  }else{
+    // 러닝 자체는 월 파일에 들어갔다. 못 쓴 것은 요약 캐시뿐이다 — 그 사실을 그대로 적는다
+    $("runsaved").innerHTML=`<span class="err">러닝은 저장됐지만 요약을 갱신하지 못했습니다 (${esc(r2.err||"원인 미상")}). 앱을 다시 열면 주간 누적이 어긋나 보일 수 있습니다.</span>`;
+  }
+}
+
+/* 축 전환 — 앱을 열면 언제나 웨이트다. 선택을 저장하지 않으므로
+   헬스장 동선(웨이트)의 탭 수는 1탭도 늘지 않는다 (SPEC 6단계). */
+function setAxis(ax){
+  document.querySelectorAll(".axis button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.ax===ax)));
+  $("wtaxis").hidden=(ax!=="wt");
+  $("runaxis").hidden=(ax!=="run");
+  if(ax==="run"){ runShown=RUN_PAGE; renderRun(); }
+  window.scrollTo({top:0,behavior:"auto"});
 }
 function applyRestore(text,src){
   const r=parseBackup(text||"");
@@ -2156,6 +2624,7 @@ async function envCheck(){
   $("today").textContent=`${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} (${DOW[d.getDay()]})`;
   await load();                              // load() 안에서 probeStorage() 가 먼저 돈다
   renderOverview(); renderBrief(); renderBlocks(); render(); markUnsaved(); keepAwake(); envCheck();
+  bindRun();      // 러닝 목록은 축을 열 때 그린다 — 웨이트 첫 화면의 비용을 늘리지 않는다
 })();
 
 /* 서비스워커 등록 — "sw.js" 상대경로여야 한다.
