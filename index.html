@@ -152,6 +152,13 @@ button.prev .more{color:var(--brass);margin-left:6px}
   display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:transparent}
 .skipbox[aria-pressed="true"]{border-color:var(--alarm);color:var(--alarm)}
 .skipbox[aria-pressed="true"] .bx{background:var(--alarm);color:#2B2836}
+/* 세션 카드의 건너뛰기는 글자를 뺀 44px 정사각이다.
+   「건너뛰기」 다섯 글자가 태그 줄을 아이폰 폭(390pt)에서 두 줄로 밀어냈다 —
+   Day 2·4 는 Pro Max(430pt)에서도 갈라졌다 (2026-08-16 실측).
+   접힌 카드(skipcard)의 「되돌리기」는 글자를 그대로 둔다 — 그쪽은 자리가 남고
+   되돌아가는 길이라 눈에 띄어야 한다. */
+.skipbox.icon{width:44px;padding:0;gap:0;justify-content:center}
+.skipbox.icon .bx{width:22px;height:22px}
 .gearbtn{width:44px;height:44px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
   color:var(--dim);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .gearbtn[aria-expanded="true"]{border-color:var(--brass);color:var(--brass);background:rgba(224,168,60,.16)}
@@ -1238,6 +1245,10 @@ const nameOf=i=>swaps[i]||(todayEx()[i]||{}).name||"";
 /* 무게 0 은 "안 더함" 이다 — 머신은 기본 무게, 프리웨이트는 빈 봉, 맨몸은 자기 몸.
    숫자 0 을 그대로 보여주면 오해를 부르므로 「기본」으로 쓴다. */
 const wTxt=w=>w>0?w+"kg":"기본";
+/* 태그 줄은 자리가 빠듯하다. `대퇴사두·코어` 처럼 둘을 묶은 target 은 앞쪽만 태그로 쓴다 —
+   프로그램의 target 값 자체는 그대로고, 화면 태그에서만 줄인다.
+   이걸 안 줄이면 매 Day 첫 카드(프리웨이트 복합운동)가 아이폰 폭에서 두 줄이 된다. */
+const tagTarget=t=>String(t==null?"":t).split("·")[0].trim();
 function lastText(l){
   const s=l.sets&&l.sets.length?l.sets:null;
   if(!s) return `${l.w>0?l.w+"kg × ":""}${(l.reps||[]).join(", ")}회`;
@@ -1306,10 +1317,11 @@ function render(){
     }).join("");
     const setsChanged = sessionSets[i]>0 && sessionSets[i]!==e.sets;
     return `<section class="ex ${setsDone(i)>=sets?"done":""} ${i===act?"active":""}" id="ex-${i}">
-      <div class="tagline">${tag}${target?`<span class="tag acc">${esc(target)}</span>`:""}${isAdded(i)?`<span class="tag arm">오늘 추가</span>`:""}
+      <div class="tagline">${tag}${target?`<span class="tag acc">${esc(tagTarget(target))}</span>`:""}${isAdded(i)?`<span class="tag arm">오늘 추가</span>`:""}
         <span class="tagctl">
-          <button class="skipbox" type="button" data-skip="${i}" aria-pressed="false"
-                  aria-label="${esc(name)} 오늘 건너뛰기"><span class="bx">✓</span>건너뛰기</button>
+          <button class="skipbox icon" type="button" data-skip="${i}" aria-pressed="false"
+                  title="오늘 건너뛰기"
+                  aria-label="${esc(name)} 오늘 건너뛰기"><span class="bx">✓</span></button>
           <button class="gearbtn" type="button" data-gear="${i}" aria-expanded="${openSheet===i}"
                   aria-label="${esc(name)} 계획 고치기">⚙</button></span></div>
       <div class="exhead"><div>
@@ -1538,15 +1550,19 @@ async function promoteAdds(){
   promo.forEach(x=>{ delete x.toProgram; D().ex.push(x); });   // 같은 객체를 밀어넣어야 매핑이 된다
   sessionAdds=sessionAdds.filter(x=>promo.indexOf(x)<0);
   const newList=todayEx();
-  const ne={}, nsw={}, nss={}, nsk={};
+  /* ⚠ 인덱스를 키로 쓰는 세션 상태는 다섯이다 — entries · swaps · sessionSets · sessionSkip · rirs.
+     하나라도 빠뜨리면 그 값만 옛 자리에 남아 옆 종목에 붙는다. rirs 를 빠뜨렸을 때
+     실제로 재저장에서 A종목의 RIR 이 B종목에 기록됐다 (2026-08-16 코드 검수). */
+  const ne={}, nsw={}, nss={}, nsk={}, nr={};
   oldList.forEach((o,oi)=>{
     const ni=newList.indexOf(o); if(ni<0) return;
     if(entries[oi]!==undefined) ne[ni]=entries[oi];
     if(swaps[oi]!==undefined) nsw[ni]=swaps[oi];
     if(sessionSets[oi]!==undefined) nss[ni]=sessionSets[oi];
     if(sessionSkip[oi]!==undefined) nsk[ni]=sessionSkip[oi];
+    if(rirs[oi]!==undefined) nr[ni]=rirs[oi];
   });
-  entries=ne; swaps=nsw; sessionSets=nss; sessionSkip=nsk;
+  entries=ne; swaps=nsw; sessionSets=nss; sessionSkip=nsk; rirs=nr;
   await saveProgram();
 }
 
@@ -1882,8 +1898,11 @@ function parseBackup(text){
     const sets=pairs.map(p=>({w:+p[1], r:+p[2]}));     // 세트별 무게를 그대로 살린다
     const reps=sets.map(v=>v.r);
     const t=planTop[name];
+    /* ⚠ === 가 아니라 >= 다. 저장 경로(allTop)와 같은 규칙이어야 한다 —
+       계획 3세트인데 4세트를 전부 상단으로 채운 날을 백업에서 복원하면
+       === 에서는 증량 제안이 사라진다. 더 했는데 벌을 받는 셈이다. */
     got[name]={w:sets[sets.length-1].w, reps, sets, rir:null, date,
-      allTop: !!(t && reps.length===t[1] && reps.every(r=>r>=t[0]))};
+      allTop: !!(t && reps.length>=t[1] && reps.every(r=>r>=t[0]))};
   });
   Object.entries(got).forEach(([name,v])=>{
     const prev=idx.lastByExercise[name];
