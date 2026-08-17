@@ -453,13 +453,33 @@ details.more summary:focus-visible{outline:2px solid var(--slate);outline-offset
   color:var(--dim);font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer}
 .runerr{color:var(--alarm);font-size:13px;line-height:1.5}
 .runerr:empty{display:none}
+/* 수정 모드 표시 — 새로 쓰는 것과 고치는 것을 화면에서 구분한다 */
+.editbar{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;color:var(--slate);
+  font-weight:700;background:rgba(132,150,174,.13);border:1px solid rgba(132,150,174,.3);
+  border-radius:9px;padding:9px 11px}
+/* 비정상 값 경고 — 막지 않는다. 인터벌·롱런은 실제로 범위를 벗어난다 (SPEC 4-9 ①) */
+.runwarn{color:var(--brass);font-size:13px;line-height:1.5;background:rgba(224,168,60,.1);
+  border:1px solid rgba(224,168,60,.34);border-radius:9px;padding:10px 12px}
+.rundel{width:100%;min-height:48px;border:1px solid rgba(228,100,62,.45);border-radius:11px;
+  background:transparent;color:var(--alarm);font-family:var(--sans);font-size:14px;
+  font-weight:700;cursor:pointer}
+.rundel.arm{background:var(--alarm);border-color:var(--alarm);color:#2B2836}
 
 .runlist{display:flex;flex-direction:column;gap:9px}
 .wksep{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px;
   letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:800;margin-top:5px}
 .wksep::after{content:"";flex:1;height:1px;background:var(--line)}
+/* 카드가 곧 버튼이다 (4-9). 버튼 기본 스타일을 지우고 왼쪽 정렬을 되살린다 */
 .run{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 14px;
-  border-left:3px solid var(--slate);display:flex;flex-direction:column;gap:6px}
+  border-left:3px solid var(--slate);display:flex;flex-direction:column;gap:6px;
+  width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;position:relative}
+.run:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+.run[aria-pressed="true"]{border-color:var(--slate);box-shadow:0 0 0 1px rgba(132,150,174,.3)}
+/* 「수정」은 글자만이다 — 44px 박스를 만들면 .rtop 폭 예산을 먹는다. 타깃은 카드 전체다.
+   ⚠ position:absolute 로 뒀더니 **메모 마지막 줄과 겹쳤다** (11회차 실측).
+   흐름 안에 두고 오른쪽으로만 민다. 높이 12px 는 겹침을 없애는 값이다 */
+.redit{align-self:flex-end;margin-top:-3px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.1em;color:var(--faint);font-weight:700}
 .rtop{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .rdate{font-family:var(--mono);font-size:12.5px;color:var(--faint);font-weight:700;min-width:66px}
 .rkm{font-family:var(--mono);font-size:19px;font-weight:800;letter-spacing:-.03em;
@@ -550,6 +570,7 @@ details.more summary:focus-visible{outline:2px solid var(--slate);outline-offset
     <button class="addrun" type="button" id="addrun">+ 오늘 러닝 기록</button>
 
     <form class="runform" id="runform" hidden>
+      <div class="editbar" id="runedithead" hidden></div>
       <div class="frow">
         <label for="runkm">거리</label>
         <div class="unit">
@@ -587,8 +608,10 @@ details.more summary:focus-visible{outline:2px solid var(--slate);outline-offset
         </div>
       </details>
       <div class="runerr" id="runerr"></div>
+      <div class="runwarn" id="runwarn" hidden></div>
       <button class="runsave" type="submit" id="runsave" disabled>저장</button>
       <button class="runcancel" type="button" id="runcancel">닫기</button>
+      <button class="rundel" type="button" id="rundel" hidden>삭제</button>
     </form>
 
     <div class="runlist" id="runlist"></div>
@@ -2475,6 +2498,28 @@ const RTYPE={easy:"이지",normal:"평소",long:"롱런",interval:"인터벌"};
 const RCLASS={easy:"",normal:"",long:"long",interval:"int"};
 const RUN_PAGE=30;                      // 1년이면 260개다. 한 번에 다 그리면 느려진다
 let runType="easy", runShown=RUN_PAGE;
+/* 4-9 — 저장한 러닝을 고치고 지운다. 러닝은 주 5회 입력이라 오타 하나가
+   주간 누적을 영구히 틀리게 만든다. editRunId 가 null 이면 새로 쓰는 것이다.
+   ⚠ 날짜는 고치지 못하게 한다 — 바꾸면 주간 집계가 두 주에 걸치고 월 파일까지
+   옮겨야 한다. 오타는 값이지 날짜가 아니다. */
+let editRunId=null, warnAck=false, delArm=null;
+/* 비정상 값 경고 (SPEC 4-9 ①). ⚠ **페이스가 가장 강한 그물이다** —
+   거리만 보면 시간 오타를 놓친다. 5000→50.00km 는 0:32/km 로, 2631 을 231 로 친 것은
+   0:30/km 로 잡힌다. 하나로 둘 다 걸린다.
+   막지 않고 확인만 받는다. 인터벌·롱런은 실제로 범위를 벗어난다. */
+const PACE_MIN=120, PACE_MAX=900;        // 2:00/km ~ 15:00/km
+function runWarn(km,sec,skipId){
+  const p=paceOf(km,sec);
+  if(p&&p<PACE_MIN) return `페이스가 ${mmss(p)}/km 입니다 — 거리나 시간을 잘못 입력하지 않았는지 확인해주세요.`;
+  if(p&&p>PACE_MAX) return `페이스가 ${mmss(p)}/km 입니다 — 걷기이거나 시간을 잘못 입력한 것 아닌가요?`;
+  // 직전 기록들과 견준다. 첫 기록이면 비교 대상이 없으니 넘어간다
+  const past=allRuns().filter(r=>r.id!==skipId).slice(0,30).map(r=>+r.km);
+  if(past.length){
+    const mx=Math.max.apply(null,past);
+    if(mx>0&&km>mx*3) return `지금까지 가장 긴 ${mx.toFixed(2)}km 의 3배가 넘습니다 (${km.toFixed(2)}km). 맞나요?`;
+  }
+  return null;
+}
 
 const dateOf=iso=>{ const p=String(iso).split("-"); return new Date(+p[0],+p[1]-1,+p[2]); };
 /* ⚠ 주는 ISO 8601 — 월요일 시작, 일요일 끝이다.
@@ -2523,10 +2568,15 @@ function recalcRunWeek(dateIso){
   idx.recentRunWeeks=arr.slice(0,8);
 }
 
+/* ⚠ 카드 전체가 버튼이다 (4-9). `.rtop` 은 flex-wrap 인데 390px 에서 이미 빠듯해서
+   44px 짜리 ⚙ 를 그 줄에 넣으면 6회차 태그 줄과 같은 방식으로 터진다.
+   총정리의 `.dayrow` 와 같은 방식이라 새 패턴도 아니다 — 폭 비용 0, 터치 타깃은 카드 전체.
+   ⚠ 그래도 「수정」 글자는 남긴다. 글자 없는 조작은 눌러볼 생각을 하지 못한다 (7회차). */
 function runCard(r){
   const p=paceOf(+r.km,+r.sec);
   const meta=[r.hr?`♥ ${r.hr}`:"", r.cadence?`🦶 ${r.cadence}`:""].filter(Boolean);
-  return `<article class="run">
+  return `<button class="run" type="button" data-redit="${esc(r.id)}"
+      aria-label="${esc(String(r.date))} ${(+r.km).toFixed(2)}km 기록 수정">
     <div class="rtop">
       <span class="rdate">${esc(String(r.date).slice(5).replace("-","."))} (${dowOf(r.date)})</span>
       <span class="rkm n">${(+r.km).toFixed(2)}<i>km</i></span>
@@ -2536,7 +2586,8 @@ function runCard(r){
     </div>
     ${meta.length?`<div class="rmeta">${meta.map(x=>`<span>${x}</span>`).join("")}</div>`:""}
     ${r.note?`<div class="rnote">${esc(r.note)}</div>`:""}
-  </article>`;
+    <span class="redit">수정</span>
+  </button>`;
 }
 function renderRun(){
   const mon=isoMonday(today()), cur=weekStats(mon);
@@ -2563,6 +2614,11 @@ function renderRun(){
   $("runlist").innerHTML=html;
   const mb=$("runmore");
   if(mb) mb.addEventListener("click",()=>{ runShown+=RUN_PAGE; renderRun(); });
+  // 카드 = 수정 진입 (4-9). renderRun 이 목록을 다시 그리므로 여기서 매번 묶는다
+  $("runlist").querySelectorAll("[data-redit]").forEach(b=>b.addEventListener("click",()=>{
+    const r=allRuns().find(x=>x.id===b.dataset.redit);
+    if(r) openRunForm(true,r);
+  }));
 }
 
 /* ── 입력 — 소수점도 콜론도 치지 않는다 (SCHEMA 「입력 형식」) ──
@@ -2601,7 +2657,14 @@ function runRecalc(){
   $("rundur").classList.toggle("bad",bad);
   $("runerr").textContent=bad?"초는 59 까지입니다. 1시간이 넘으면 분으로 이어 치세요 — 6218 → 62:18":"";
   $("runsave").disabled=!(km>0&&sec>0);
+  // 값이 바뀌면 경고 확인은 무효다 — 안 그러면 고친 값이 검사 없이 들어간다
+  warnAck=false; $("runwarn").hidden=true; disarmDel();
+  $("runsave").textContent=editRunId?"수정 저장":"저장";
 }
+/* 삭제는 두 번 눌러야 한다. confirm() 은 쓰지 않는다 —
+   브라우저 자동화가 멈추고(NEXT-SESSION 4절) iOS 모달도 손에 안 맞는다 */
+function disarmDel(){ if(delArm){ clearTimeout(delArm); delArm=null; }
+  const b=$("rundel"); if(b){ b.classList.remove("arm"); b.textContent="삭제"; } }
 function resetRunForm(){
   // 프리필은 5.00 고정이고 회색이다. 「직전 값」이 아니다 — 밤 러닝이 5km 고정이라
   // 롱런 다음 날 10.9 가 떠서 매번 지워야 했다 (2026-08-17 정정)
@@ -2612,19 +2675,38 @@ function resetRunForm(){
   document.querySelectorAll("#runform .chip").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.rtype==="easy")));
   runRecalc();
 }
-function openRunForm(on){
+/* rec 를 주면 수정 모드다. 폼을 새로 만들지 않고 이것 하나를 재사용한다 —
+   두 벌이 되면 숫자만 받기·초 59 검사·페이스 자동이 반드시 어긋난다 (4-9) */
+function openRunForm(on,rec){
   $("runform").hidden=!on;
-  $("addrun").textContent=on?"− 닫기":"+ 오늘 러닝 기록";
+  editRunId=(on&&rec)?rec.id:null;
+  $("addrun").textContent=on&&!rec?"− 닫기":"+ 오늘 러닝 기록";
+  $("rundel").hidden=!(on&&rec);
+  $("runedithead").hidden=!(on&&rec);
+  disarmDel();
+  if(!on){ renderRun(); return; }
   // 새로 입력하려고 열면 지난 마무리 프롬프트는 치운다. 옛 내용이 남아 있으면 그걸 복사한다
-  if(on){ resetRunForm(); $("runcoach").style.display="none"; $("runsaved").textContent=""; $("rundur").focus(); }
+  $("runcoach").style.display="none"; $("runsaved").textContent="";
+  if(rec){
+    $("runedithead").textContent=`${rec.date} 기록 수정 · 날짜는 바꿀 수 없습니다`;
+    $("runkm").value=(+rec.km).toFixed(2); $("runkm").classList.remove("ghost");
+    $("rundur").value=mmss(+rec.sec); $("rundur").classList.remove("bad");
+    $("runhr").value=rec.hr||""; $("runcad").value=rec.cadence||""; $("runnote").value=rec.note||"";
+    runType=rec.type||"easy";
+    document.querySelectorAll("#runform .chip").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.rtype===runType)));
+    runRecalc();
+    $("runform").scrollIntoView({behavior:"smooth",block:"center"});
+  }else{ resetRunForm(); $("rundur").focus(); }
 }
 
 function bindRun(){
   bindDigits($("runkm"),4,".");        // 최대 99.99
   bindDigits($("rundur"),5,":");       // 최대 999:59
   $("runkm").addEventListener("focus",()=>{ $("runkm").classList.remove("ghost"); $("runkm").select(); });
-  $("addrun").addEventListener("click",()=>openRunForm($("runform").hidden));
+  // 「+ 오늘 러닝 기록」은 언제나 **새로 쓰기**다. 수정 중에 눌러도 새 입력으로 바뀐다
+  $("addrun").addEventListener("click",()=>openRunForm($("runform").hidden||!!editRunId));
   $("runcancel").addEventListener("click",()=>openRunForm(false));
+  $("rundel").addEventListener("click",delRun);
   document.querySelectorAll("#runform .chip").forEach(b=>b.addEventListener("click",()=>{
     document.querySelectorAll("#runform .chip").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
     runType=b.dataset.rtype;
@@ -2638,39 +2720,87 @@ async function saveRun(e){
   if(!(km>=0.1&&km<100)){ $("runerr").textContent="거리는 0.1 ~ 99.99km 사이로 입력해주세요."; return; }
   if(runBadSec()){ $("runerr").textContent="초는 59 까지입니다 — 6218 → 62:18"; return; }
   if(!(sec>0)){ $("runerr").textContent="시간을 입력해주세요."; return; }
-  const date=today(), m=monthOf(date), mo=getMonth(m);
+  /* 비정상 값은 **막지 않고 한 번 더 묻는다** (SPEC 4-9 ①).
+     인터벌·롱런은 실제로 범위를 벗어나므로 차단하면 정상 기록을 못 남긴다. */
+  const w=runWarn(km,sec,editRunId);
+  if(w&&!warnAck){
+    $("runwarn").hidden=false; $("runwarn").textContent=w;
+    warnAck=true; $("runsave").textContent="그대로 저장";
+    return;
+  }
+  const old=editRunId?allRuns().find(r=>r.id===editRunId):null;
+  if(editRunId&&!old){ $("runerr").textContent="그 기록을 찾지 못했습니다. 목록을 다시 열어주세요."; return; }
+  // ⚠ 날짜는 언제나 원래 것이다. 수정으로 날짜가 바뀌면 주간 집계가 두 주에 걸치고
+  //    월 파일까지 옮겨야 한다 — 오타는 값이지 날짜가 아니다 (4-9)
+  const date=old?old.date:today(), m=monthOf(date), mo=getMonth(m);
   const hr=parseInt($("runhr").value,10), cad=parseInt($("runcad").value,10);
   // 시각은 어디에도 남기지 않는다 — id 는 날짜 + 4자리 무작위다 (SCHEMA 「시각을 저장하지 않는다」)
-  const rec={id:newId("r",date), date, km:Math.round(km*100)/100, sec, type:runType,
-             hr:hr>0?hr:null, cadence:cad>0?cad:null, note:($("runnote").value||"").trim(), rev:1};
+  const rec={id:old?old.id:newId("r",date), date, km:Math.round(km*100)/100, sec, type:runType,
+             hr:hr>0?hr:null, cadence:cad>0?cad:null, note:($("runnote").value||"").trim(),
+             rev:old?(old.rev||1)+1:1};      // 병합 기준은 rev 정수다 (SCHEMA)
   mo.runs=mo.runs||[];
-  mo.runs.push(rec);
+  const back=JSON.parse(JSON.stringify(mo.runs));   // 쓰기 실패 시 되돌릴 자리
+  if(old){ const i=mo.runs.findIndex(x=>x.id===old.id); if(i>=0) mo.runs[i]=rec; else mo.runs.push(rec); }
+  else mo.runs.push(rec);
   mo.runs.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
   const hadMonth=idx.months.includes(m);
   if(!hadMonth){ idx.months.push(m); idx.months.sort(); }
-  idx.counts.runs=(idx.counts.runs||0)+1;
+  if(!old) idx.counts.runs=(idx.counts.runs||0)+1;   // 수정은 개수를 늘리지 않는다
   recalcRunWeek(date);
   idx.rev++;
 
   const r1=await writeJSON(K.month(m),mo);
   if(!r1.ok){
     // 조용히 넘기지 않는다 (CLAUDE.md 원칙 3). 화면에만 남은 기록을 만들지 않는다
-    mo.runs=mo.runs.filter(x=>x.id!==rec.id);
+    mo.runs=back;
     if(!hadMonth) idx.months=idx.months.filter(x=>x!==m);
-    idx.counts.runs--; recalcRunWeek(date);
-    $("runsaved").innerHTML=`<span class="err">저장 실패 — ${esc(r1.err||"원인 미상")}<br>기록되지 않았습니다. 저장 공간을 확보하고 다시 시도해주세요.</span>`;
+    if(!old) idx.counts.runs--;
+    recalcRunWeek(date);
+    $("runsaved").innerHTML=`<span class="err">${old?"수정":"저장"} 실패 — ${esc(r1.err||"원인 미상")}<br>기록이 바뀌지 않았습니다. 저장 공간을 확보하고 다시 시도해주세요.</span>`;
     return;
   }
   const r2=await writeJSON(K.index,idx);
+  const wasEdit=!!old;
   openRunForm(false); runShown=RUN_PAGE; renderRun();
   if(r2.ok){
     $("runsaved").className="saved";
-    $("runsaved").textContent=`저장됨 · ${date} ${rec.km.toFixed(2)}km ${hms(sec)} ${mmss(paceOf(rec.km,sec))}/km`;
+    $("runsaved").textContent=`${wasEdit?"수정됨":"저장됨"} · ${date} ${rec.km.toFixed(2)}km ${hms(sec)} ${mmss(paceOf(rec.km,sec))}/km`;
     showRunCoach(date);          // 「오늘 마무리」 — 하루를 닫고 한 번에 보내는 길 (11회차)
   }else{
     // 러닝 자체는 월 파일에 들어갔다. 못 쓴 것은 요약 캐시뿐이다 — 그 사실을 그대로 적는다
-    $("runsaved").innerHTML=`<span class="err">러닝은 저장됐지만 요약을 갱신하지 못했습니다 (${esc(r2.err||"원인 미상")}). 앱을 다시 열면 주간 누적이 어긋나 보일 수 있습니다.</span>`;
+    $("runsaved").innerHTML=`<span class="err">러닝은 ${wasEdit?"수정":"저장"}됐지만 요약을 갱신하지 못했습니다 (${esc(r2.err||"원인 미상")}). 앱을 다시 열면 주간 누적이 어긋나 보일 수 있습니다.</span>`;
   }
+}
+/* 삭제 — 두 번 눌러야 지워진다 (4-9). 되돌릴 수 없는 조작이라 한 번에 끝내지 않는다.
+   ⚠ confirm() 은 안 쓴다: 브라우저 자동화가 멈추고 iOS 모달도 손에 안 맞는다 */
+async function delRun(){
+  const b=$("rundel");
+  if(!delArm){
+    b.classList.add("arm"); b.textContent="정말 삭제 — 한 번 더";
+    delArm=setTimeout(disarmDel,5000);     // 5초 뒤 저절로 풀린다. 잘못 눌러도 갇히지 않는다
+    return;
+  }
+  disarmDel();
+  const rec=allRuns().find(r=>r.id===editRunId);
+  if(!rec){ $("runerr").textContent="그 기록을 찾지 못했습니다."; return; }
+  const m=monthOf(rec.date), mo=getMonth(m);
+  const back=JSON.parse(JSON.stringify(mo.runs||[]));
+  mo.runs=(mo.runs||[]).filter(x=>x.id!==rec.id);
+  idx.counts.runs=Math.max(0,(idx.counts.runs||0)-1);
+  recalcRunWeek(rec.date);
+  idx.rev++;
+  const r1=await writeJSON(K.month(m),mo);
+  if(!r1.ok){
+    mo.runs=back; idx.counts.runs++; recalcRunWeek(rec.date);
+    $("runsaved").innerHTML=`<span class="err">삭제 실패 — ${esc(r1.err||"원인 미상")}<br>기록은 그대로 남아 있습니다.</span>`;
+    return;
+  }
+  const r2=await writeJSON(K.index,idx);
+  openRunForm(false); renderRun();
+  $("runsaved").className="saved";
+  $("runsaved").textContent=r2.ok
+    ? `삭제됨 · ${rec.date} ${(+rec.km).toFixed(2)}km`
+    : `삭제됐지만 요약을 갱신하지 못했습니다 (${r2.err||"원인 미상"}).`;
 }
 
 /* 축 전환 — 앱을 열면 언제나 웨이트다. 선택을 저장하지 않으므로
