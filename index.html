@@ -593,6 +593,7 @@ details.more summary:focus-visible{outline:2px solid var(--slate);outline-offset
 
     <div class="runlist" id="runlist"></div>
     <div class="saved" id="runsaved"></div>
+    <section class="block" id="runcoach" style="display:none"></section>
   </section>
 
   <div class="env" id="env"></div>
@@ -2049,6 +2050,13 @@ $("finish").addEventListener("click",async()=>{
              warmup:{done:wOn.map(k=>(d0.warmup[k]||[])[0]).filter(Boolean),
                      min:Math.round(wOn.reduce((a,k)=>a+((d0.warmup[k]||[])[2]||0),0)/60)},
              finisher: fOn?{name:d0.finish.name, min:Math.round(d0.finish.sec/60)}:null,
+             /* 건너뛴 종목을 기록에 남긴다 (필드 추가 · 마이그레이션 아니다).
+                exercises 에는 여전히 안 넣는다 — 안 한 것은 기록이 아니다 (SCHEMA).
+                다만 이름은 남겨야 한다. 예전에는 sessionSkip(세션 상태)에서만 읽었는데
+                그건 「초기화」를 누르면 사라져서, 밤에 만드는 「오늘 마무리」 프롬프트가
+                건너뛴 종목을 통째로 잃었다 (11회차). 코치가 볼륨이 왜 줄었는지 알아야 한다.
+                옛 기록에는 이 필드가 없다 — 읽는 쪽이 [] 로 받는다 */
+             skipped: todayEx().map((e,i)=>sessionSkip[i]?nameOf(i):null).filter(Boolean),
              exercises:[], rev: again?(savedRec.rev+1):1};
   todayEx().forEach((e,i)=>{
     if(sessionSkip[i]) return;           // 안 한 것은 기록이 아니다
@@ -2298,9 +2306,23 @@ $("exportbtn").addEventListener("click",showBackup);
 /* 코칭 프롬프트 — 세션 끝날 때마다 쓰는 것. 이력이 쌓여도 길이가 일정하다.
    담을 항목은 SCHEMA 「코칭 프롬프트」 표를 따른다. 러닝(6단계)과 RIR(4-1)은
    아직 데이터가 없어 빠져 있고, 생기면 여기에 줄을 더한다. */
-function coachText(rec){
+/* 러닝 한 줄 (프롬프트용) — 백업의 runLine 과 다르다. 저기엔 `러닝:` 이 붙고
+   케이던스·메모까지 담긴다. 여기는 코치가 판단에 쓰는 것만 담는다.
+   ⚠ `km` 이지 `kg x` 가 아니라 파서가 건드리지 않는다 (SCHEMA 「파싱 규칙」). */
+const runPromptLine=r=>`[${r.date}] ${(+r.km).toFixed(2)}km ${hms(+r.sec)} ${mmss(paceOf(+r.km,+r.sec))}/km ${RTYPE[r.type]||r.type||""}`
+  +(r.hr?` · 심박 ${r.hr}`:"");
+/* 「이번 주 러닝」 한 줄. ⚠ `주 N일차` 를 반드시 같이 준다 —
+   주 초반에는 누적이 언제나 목표에 못 미치는데, 그 줄만 보면 코치가 「미달」로 읽는다.
+   월요일 아침 세션이면 언제나 `0.0km · 0회` 다 (11회차에 실사용에서 나온 지적). */
+function weekRunLine(dateIso){
+  const s=weekStats(isoMonday(dateIso));
+  const nth=Math.round((dateOf(dateIso)-dateOf(isoMonday(dateIso)))/86400000)+1;
+  return `${s.km.toFixed(1)}km · ${s.n}회 · 주 ${nth}일차 (목표 ${RUN_WEEK_TARGET}km)`;
+}
+/* 「오늘 Day의 목표」 블록 — 두 프롬프트가 같이 쓴다 */
+function goalLines(rec){
   const d=PROG()[rec.day-1]||D();
-  const goal=(rec.exercises||[]).map(x=>{
+  return (rec.exercises||[]).map(x=>{
     // 오늘 추가한 종목은 계획에 없다 (planned:null). sessionAdds 에서 찾고 그렇게 표시한다
     const e=d.ex.find(z=>z.name===x.planned)||d.ex.find(z=>z.name===x.name)
           ||sessionAdds.find(z=>z.name===x.name);
@@ -2312,8 +2334,15 @@ function coachText(rec){
          + (n!==e.sets?` · 오늘 ${n}세트 수행`:"")
          + (x.planned===null?" · 오늘 추가한 종목":"");
   });
-  // 건너뛴 종목도 코칭 재료다 — 볼륨이 왜 줄었는지 알아야 조언이 맞는다
-  const skipped=todayEx().map((e,i)=>sessionSkip[i]?nameOf(i):null).filter(Boolean);
+}
+/* 건너뛴 종목도 코칭 재료다 — 볼륨이 왜 줄었는지 알아야 조언이 맞는다.
+   ⚠ 기록(rec.skipped)에서 읽는다. 세션 상태(sessionSkip)는 「초기화」로 사라져서
+   밤에 만드는 「오늘 마무리」가 이걸 잃었다. 옛 기록에는 필드가 없다 → [] */
+const skippedOf=rec=>(rec&&rec.skipped)||[];
+
+function coachText(rec){
+  const goal=goalLines(rec);
+  const skipped=skippedOf(rec);
   // 같은 Day 직전 2회 — 오늘 것은 뺀다
   const prev=allSessions().filter(s=>s.day===rec.day&&s.id!==rec.id).slice(0,2);
   const L=[
@@ -2340,12 +2369,16 @@ function coachText(rec){
        ⚠ `km` 이지 `kg x` 가 아니라서 백업 파서가 이 줄을 건드리지 않는다. 깨뜨리지 말 것. */
     `[최근 러닝 3회]`,
     ...(()=>{ const l=allRuns().slice(0,3);
-      return l.length?l.map(r=>`[${r.date}] ${(+r.km).toFixed(2)}km ${hms(+r.sec)} ${mmss(paceOf(+r.km,+r.sec))}/km ${RTYPE[r.type]||r.type||""}`
-        +(r.hr?` · 심박 ${r.hr}`:"")):["러닝 기록 없음"]; })(),
+      return l.length?l.map(runPromptLine):["러닝 기록 없음"]; })(),
+    /* ⚠ 시점을 밝힌다. 웨이트는 아침·낮이고 러닝은 밤이라 이 프롬프트를 만드는 시점에
+       오늘 밤 러닝은 **언제나** 없다. 그걸 안 적으면 코치가 「오늘 안 뛰었나」로 읽는다
+       (11회차에 실사용에서 나온 지적). 이미 오늘 러닝이 있으면 이 줄은 안 붙인다.
+       `kg x` 가 없어 파서가 건너뛴다 — 이 성질을 깨뜨리지 말 것 */
+    ...(allRuns().some(r=>r.date===rec.date)?[]:
+        [`러닝은 밤에 한다 — 이 기록은 웨이트를 저장한 시점이라 오늘 밤 러닝은 아직 없다.`]),
     ``,
     `[이번 주 러닝]`,
-    (()=>{ const s=weekStats(isoMonday(rec.date));
-      return `${s.km.toFixed(1)}km · ${s.n}회 (목표 ${RUN_WEEK_TARGET}km)`; })(),
+    weekRunLine(rec.date),
     ``,
     `[진행 상황]`,
     (weekNo()?`${weekNo()}주차 · `:"") +
@@ -2362,6 +2395,66 @@ function coachText(rec){
     `한국어로. 항목당 한 줄, 최대 4줄. "종목명 — 다음 조치" 형태로 구체적 숫자 포함. 마지막 한 줄로 전반 코멘트. 인사말 없이 바로 시작. 마크다운 기호 금지.`
   ];
   return L.join("\n");
+}
+/* ══ 「오늘 마무리」 프롬프트 (11회차) ══════════════════════════════════
+   러닝까지 끝내고 하루를 닫을 때 쓴다. 세션 프롬프트와 무엇이 다른가 —
+     · 세션 프롬프트는 저장 시점(아침·낮)이라 **오늘 밤 러닝이 아직 없다.** 여기엔 있다
+     · 그날 웨이트를 두 번 했으면 둘 다 담는다 (오래된 것부터)
+     · 웨이트를 안 한 날은 러닝만 담고 세션 블록을 통째로 뺀다
+   ⚠ 둘 중 **하나만** 보내면 된다. 앱은 어느 쪽도 강요하지 않는다.
+   ⚠ 새로 더하는 줄에 `kg x` 패턴이 없어야 한다 (SCHEMA 「파싱 규칙」). */
+function finishText(dateIso){
+  const date=dateIso||today();
+  const ses=allSessions().filter(s=>s.date===date);     // 최신이 먼저다
+  const runs=allRuns().filter(r=>r.date===date);
+  const hasW=ses.length>0;
+  const L=[ hasW
+      ? `아래는 오늘 하루 운동 기록이다. 웨이트와 러닝을 같이 놓고, 다음에 같은 Day를 할 때 무엇을 바꿔야 하는지 코칭하라.`
+      : `아래는 오늘 러닝 기록이다. 이날은 웨이트를 하지 않았다. 러닝만 놓고 짧게 코멘트하라.`,
+    `` ];
+  if(hasW){
+    const main=ses[ses.length-1];                       // 그날 첫 세션이 기준이다
+    L.push(`[오늘 웨이트]`);
+    // 오래된 것부터 읽히게 뒤집는다 — 「앞서 한 세션」이 먼저 와야 순서가 맞는다
+    ses.slice().reverse().forEach((s,k)=>{ if(k) L.push(``); L.push(...sessionLines(s)); });
+    L.push(``, `[오늘 Day의 목표]`, ...(goalLines(main).length?goalLines(main):["(없음)"]), ``);
+    // 건너뛴 종목은 목표 목록에 섞지 않는다 — 붙여 두면 목표의 일부로 읽힌다
+    const sk=ses.flatMap(skippedOf);
+    if(sk.length) L.push(`[오늘 하지 않은 종목]`, sk.join(", "), ``);
+    const prev=allSessions().filter(s=>s.day===main.day&&s.date!==date).slice(0,2);
+    L.push(`[같은 Day 이전 기록]`, ...(prev.length?prev.flatMap(sessionLines):["이전 기록 없음"]), ``);
+  }
+  L.push(`[오늘 러닝]`, ...(runs.length?runs.map(runPromptLine):["러닝 기록 없음"]), ``);
+  // 오늘 것은 위 블록에 있다. 여기서 또 보여주면 같은 줄이 두 번 온다
+  const before=allRuns().filter(r=>r.date<date).slice(0,3);
+  L.push(`[오늘 이전 러닝 3회]`, ...(before.length?before.map(runPromptLine):["이전 러닝 기록 없음"]), ``);
+  L.push(`[이번 주 러닝]`, weekRunLine(date), ``);
+  if(hasW){
+    L.push(`[진행 상황]`,
+      (weekNo()?`${weekNo()}주차 · `:"") + `${cyclesDone()}바퀴 · 누적 ${idx.counts.sessions}세션`
+      + (cyclesDone()>=6?" · 디로드 권고 구간":""), ``);
+  }
+  L.push(`[사용자 상황]`, CONTEXT, ``);
+  if(hasW){
+    L.push(`[진행 규칙]`,
+      `이중 점진 — 목표 반복 범위 상단을 전 세트 달성하면 다음에 한 단계 증량. 상단에 못 미치면 같은 중량 유지. 실패 지점까지 밀지 않는다. 무게 0kg은 머신 기본 무게 또는 빈 봉을 뜻한다.`, ``);
+  }
+  L.push(`[답변 형식]`, hasW
+    ? `한국어로. 항목당 한 줄, 최대 4줄. "종목명 — 다음 조치" 형태로 구체적 숫자 포함. 러닝이 하체 회복에 걸리면 그것부터 짚을 것. 마지막 한 줄로 전반 코멘트. 인사말 없이 바로 시작. 마크다운 기호 금지.`
+    : `한국어로. 최대 2줄. 러닝 부하와 주간 누적만 보고 코멘트. 웨이트 조언은 하지 말 것. 인사말 없이 바로 시작. 마크다운 기호 금지.`);
+  return L.join("\n");
+}
+/* 러닝을 저장하면 뜬다. ⚠ 웨이트를 안 한 날에는 **강조하지 않는다** —
+   러닝은 주 5회라 매번 눈에 띄게 하면 붙여넣기를 강요하는 꼴이 된다. */
+function showRunCoach(date){
+  const box=$("runcoach"), hasW=allSessions().some(s=>s.date===date);
+  box.style.display="block";
+  box.innerHTML=`<span class="eyebrow">오늘 마무리</span>
+    <button class="coachbtn" id="fincopy"${hasW?' style="background:var(--brass);color:#2B2836;border-color:var(--brass)"':""}>마무리 프롬프트 복사</button>
+    <div class="bakhint">${hasW?"오늘 웨이트까지 같이 담겼습니다. 세션 저장 때 복사한 것과 <b>둘 중 하나만</b> 보내면 됩니다."
+                               :"러닝만 담겼습니다. 보낼 것이 없으면 그냥 두세요."}</div>
+    <textarea id="fintext" readonly rows="6">${esc(finishText(date))}</textarea>`;
+  bindCopy("fincopy","fintext");
 }
 function showCoach(rec){
   const box=$("coachbox");
@@ -2522,7 +2615,8 @@ function resetRunForm(){
 function openRunForm(on){
   $("runform").hidden=!on;
   $("addrun").textContent=on?"− 닫기":"+ 오늘 러닝 기록";
-  if(on){ resetRunForm(); $("rundur").focus(); }
+  // 새로 입력하려고 열면 지난 마무리 프롬프트는 치운다. 옛 내용이 남아 있으면 그걸 복사한다
+  if(on){ resetRunForm(); $("runcoach").style.display="none"; $("runsaved").textContent=""; $("rundur").focus(); }
 }
 
 function bindRun(){
@@ -2572,6 +2666,7 @@ async function saveRun(e){
   if(r2.ok){
     $("runsaved").className="saved";
     $("runsaved").textContent=`저장됨 · ${date} ${rec.km.toFixed(2)}km ${hms(sec)} ${mmss(paceOf(rec.km,sec))}/km`;
+    showRunCoach(date);          // 「오늘 마무리」 — 하루를 닫고 한 번에 보내는 길 (11회차)
   }else{
     // 러닝 자체는 월 파일에 들어갔다. 못 쓴 것은 요약 캐시뿐이다 — 그 사실을 그대로 적는다
     $("runsaved").innerHTML=`<span class="err">러닝은 저장됐지만 요약을 갱신하지 못했습니다 (${esc(r2.err||"원인 미상")}). 앱을 다시 열면 주간 누적이 어긋나 보일 수 있습니다.</span>`;
