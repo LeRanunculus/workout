@@ -114,7 +114,10 @@ button.prev .more{color:var(--brass);margin-left:6px}
   padding:3px 8px;border-radius:20px;white-space:nowrap}
 
 .ex{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px 15px 14px;margin-bottom:11px;scroll-margin-top:14px}
-.ex.done{opacity:.45}
+/* ⚠ 카드를 통째로 흐리면 방금 뜬 RIR 칩까지 같이 흐려진다. 11회차에 폰에서
+   「칩이 안 뜬다」로 나타난 원인 중 하나다. opacity 는 부모에 걸면 자식이 벗어날 수
+   없으므로 직계 자식에만 걸고 칩 구역(.rirlab·.rir)을 뺀다. 되돌리지 말 것 */
+.ex.done > *:not(.rir):not(.rirlab){opacity:.45}
 .ex.active{border-color:var(--brass);box-shadow:0 0 0 1px rgba(224,168,60,.25)}
 /* align-items 를 주지 않으면 기본값이 stretch 다. 44px 짜리 건너뛰기·⚙ 버튼이 같은 줄에
    들어오면서 옆의 작은 태그들이 44px 로 늘어나 글자에 비해 알약이 뚱뚱해 보였다. */
@@ -233,7 +236,9 @@ button.prev .more{color:var(--brass);margin-left:6px}
 /* RIR 칩 (4-1) — 세트마다 묻지 않는다. 한 종목을 마치면 한 번, 종목당 1탭 */
 .rirlab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--faint);font-weight:700;margin-top:13px}
-.rir{display:flex;gap:6px;margin-top:7px}
+/* scroll-margin-bottom — 휴식 바가 position:fixed 로 화면 아래를 덮는다(.rest).
+   칩으로 스크롤할 때 이 여백이 없으면 칩이 바 밑에 깔린다 (11회차) */
+.rir{display:flex;gap:6px;margin-top:7px;scroll-margin-bottom:calc(150px + env(safe-area-inset-bottom))}
 .rirchip{flex:1;min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);
   color:var(--dim);font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;padding:0 4px}
 .rirchip[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#2B2836}
@@ -1685,7 +1690,16 @@ function bind(){
       const fin=on&&setsDone(i)>=setsOf(i);
       if(on) startRest(rest,nameOf(i),i,s); else stopRest();
       render();
-      if(fin){ const nx=$("ex-"+(i+1)); if(nx) setTimeout(()=>nx.scrollIntoView({behavior:"smooth",block:"start"}),260); }
+      /* ⚠ 종목을 마치는 순간 RIR 칩이 그때 처음 뜬다 (아래 4-1 렌더).
+         예전에는 곧바로 다음 카드로 스크롤해서 칩이 화면 위로 밀려났고, 폰에서는
+         「칩이 아예 안 뜬다」로 보였다 (11회차 · 실사용에서 잡혔다).
+         아직 안 골랐으면 칩을 먼저 보여주고, 고른 뒤에 다음 카드로 넘어간다
+         (칩 핸들러가 이어받는다). 고르지 않고 지나가도 막지 않는다 — 「선택」이다 */
+      if(fin){
+        const card=$("ex-"+i), chips=(rirs[i]===undefined&&card)?card.querySelector(".rir"):null;
+        const el=chips||$("ex-"+(i+1));
+        if(el) setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:chips?"end":"start"}),260);
+      }
     };
     btn.addEventListener("click",go);
     btn.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
@@ -1708,7 +1722,16 @@ function bindQuick(){
   on("[data-rir]",e=>{
     const t=e.currentTarget, i=+t.dataset.rir, v=t.dataset.v;
     if(rirs[i]===v) delete rirs[i]; else rirs[i]=v;
+    const picked=rirs[i]!==undefined;
     saveDraft(); render();
+    /* 칩을 고르면 그때 다음 카드로 넘어간다 — 마친 직후의 스크롤을 여기로 미룬 것이다.
+       해제할 때는 움직이지 않는다. 다음 종목이 이미 끝나 있으면(나중에 되돌아와 고치는
+       경우다) 화면을 낚아채지 않는다 */
+    if(picked){
+      const n=i+1, nx=$("ex-"+n);
+      if(nx&&todayEx()[n]&&!sessionSkip[n]&&setsDone(n)<setsOf(n))
+        setTimeout(()=>nx.scrollIntoView({behavior:"smooth",block:"start"}),200);
+    }
   });
   on("[data-addset]",e=>{
     const i=+e.currentTarget.dataset.addset, n=setsOf(i);
@@ -2125,6 +2148,19 @@ function weekNo(){
   const d=Math.floor((new Date(today())-new Date(s))/86400000);
   return d>=0 ? Math.floor(d/7)+1 : null;
 }
+/* 바퀴 — 누적 세션 ÷ Day 수 (내림).
+   ⚠ rotation.cycles 를 쓰지 않는다. 그 값은 applyRotation 이 마지막 Day 를 했을 때만
+   올리는데, 총정리에서 Day 를 직접 골라 할 수 있어서 Day 5 를 건너뛰면 바퀴가 영영
+   0 이고 디로드 권고(6바퀴)가 절대 안 뜬다. 11회차에 실사용 프롬프트가
+   `0바퀴 · 누적 5세션` 으로 나와 드러났다.
+   HANDOFF 「디로드는 바퀴 수 기준」의 근거가 원래 "누적 부하는 세션 수를 따라간다" 였다.
+   Day 1 을 두 번 해도 몸이 받은 세션은 쌓였으니 이쪽이 의도에 맞는다.
+   rotation.cycles 필드는 SCHEMA 계약이라 그대로 두고 표시·판정만 유도값을 쓴다. */
+function cyclesDone(){
+  const len=(PROG()||[]).length||1;
+  const n=(idx&&idx.counts&&idx.counts.sessions)||0;
+  return Math.floor(n/len);
+}
 /* ⚠ 파서는 `종목명: NNkg x NN` 한 줄 문법만 안다 (SCHEMA 「파싱 규칙」).
    여기 덧붙이는 줄들은 `kg x` 패턴이 없어 자동으로 건너뛰어진다. 헤더 뒤에 붙는 것도
    정규식이 날짜와 Day 만 잡으므로 안전하다. 이 성질을 깨뜨리지 말 것. */
@@ -2313,8 +2349,8 @@ function coachText(rec){
     ``,
     `[진행 상황]`,
     (weekNo()?`${weekNo()}주차 · `:"") +
-      `${idx.rotation.cycles}바퀴 · 누적 ${idx.counts.sessions}세션` +
-      (idx.rotation.cycles>=6?" · 디로드 권고 구간":""),
+      `${cyclesDone()}바퀴 · 누적 ${idx.counts.sessions}세션` +
+      (cyclesDone()>=6?" · 디로드 권고 구간":""),
     ``,
     `[사용자 상황]`,
     CONTEXT,
